@@ -1,0 +1,15 @@
+CC=/usr/local/cuda/bin/nvcc
+INCLUDE=-I/usr/local/cuda/include \
+
+SOURCE=scattering.cu
+EXECUTABLE=scattering
+FLAGS=
+
+#FOR DEBUGGING
+#FLAGS=-g
+
+$(EXECUTABLE): $(SOURCE)
+	$(CC) $(FLAGS) $(INCLUDE) $< -o $@ 
+
+clean:
+	rm -f resultGPU.ppm scattering scattering.out scattering.err analysis.nvvp unrolled.ppm
