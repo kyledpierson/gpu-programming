@@ -12,4 +12,4 @@ $(EXECUTABLE): $(SOURCE)
 	$(CC) $(FLAGS) $(INCLUDE) $< -o $@ 
 
 clean:
-	rm -f resultGPU.ppm scattering scattering.out scattering.err analysis.nvvp unrolled.ppm
+	rm -f analysis.nvvp result.ppm scattering scattering.out scattering.err
