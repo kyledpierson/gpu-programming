@@ -1,12 +1,26 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include "string.h"
-#include "cuda.h"
 #include <complex.h>
+#include "cuda.h"
+#include <fcntl.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include "string.h"
+#include <unistd.h>
 
 #define DEFAULT_FILENAME "mountains.ppm"
+
+dim3 numBlocks(int ysize, int xsize, int ythreads, int xthreads) {
+    if (ysize % ythreads) {
+        ysize = ysize/ythreads*ythreads + ythreads;
+    }
+    if (xsize % xthreads) {
+        xsize = xsize/xthreads*xthreads + xthreads;
+    }
+    int yblocks = ysize / ythreads;
+    int xblocks = xsize / xthreads;
+
+    dim3 blocks(xblocks, yblocks);
+    return blocks;
+}
 
 void* memCheck(void* mem) {
     // Make sure memory is allocated
@@ -142,20 +156,23 @@ __global__ void conv(unsigned int *image, int *result, int xsize) {
 
     int y = threadIdx.y;
     int x = threadIdx.x;
-
-    int min_y = blockIdx.y*(blockDim.y-6);
-    int min_x = blockIdx.x*(blockDim.x-6);
+    int offset = (blockIdx.y*(blockDim.y-6)+y)*xsize + (blockIdx.x*(blockDim.x-6)+x);
 
     // Load into shared memory
-    tile[y][x] = image[(min_y+y)*xsize + (min_x+x)];
-
-    // Sync the threads
+    tile[y][x] = image[offset];
     __syncthreads();
 
     // Each interior thread computes sobel
     if (y>2 && y<blockDim.y-3 && x>2 && x<blockDim.x-3) {
-        result[(min_y+y)*xsize + (min_x+x)] = conv_pixel(tile, gaussian, y, x);
+        result[offset] = conv_pixel(tile, gaussian, y, x);
     }
+}
+
+__global__ void downsample(int *image, int *dsimage, int xsize, int dsxsize) {
+    int yoffset = blockIdx.y*blockDim.y+threadIdx.y;
+    int xoffset = blockIdx.x*blockDim.x+threadIdx.x;
+
+    dsimage[yoffset*dsxsize + xoffset] = image[2*(yoffset*xsize + xoffset)];
 }
 
 // ============================== MAIN ==============================
@@ -242,51 +259,53 @@ int main(int argc, char **argv) {
     };
     */
 
-    // ===================== READ PARAMETERS ======================
+    // ==================== READ PARAMETERS ====================
     char *filename = strdup(DEFAULT_FILENAME);
     if (argc > 1) {
         filename = strdup(argv[1]);
-        fprintf(stderr, "file %s\n", filename);
+        fprintf(stderr, "Using %s\n", filename);
     }
 
     // Read image
     int xsize, ysize, maxval;
     unsigned int *image = read_ppm(filename, xsize, ysize, maxval);
 
-    // ==================== GPU IMPLEMENTATION ====================
-    int yround = ysize;
-    int xround = xsize;
-
+    // ==================== VARIABLES FOR CONVOLUTION ====================
     int ythreads = 32;
     int xthreads = 32;
-    int ymult = ythreads-6;
-    int xmult = xthreads-6;
+    int yactive = ythreads-6;
+    int xactive = xthreads-6;
 
-    // For simplicity, have exactly the number of blocks and threads needed
-    if (yround % ymult) {
-        yround = yround/ymult*ymult + ymult;
-    }
-    if (xround % xmult) {
-        xround = xround/xmult*xmult + xmult;
-    }
-    int yblocks = yround / ymult;
-    int xblocks = xround / xmult;
-
-    dim3 blocks(xblocks, yblocks);
+    dim3 blocks = numBlocks(ysize, xsize, yactive, xactive);
     dim3 threads(xthreads, ythreads);
 
     // Allocate memory
     int bytes = ysize*xsize*sizeof(int);
-    int numbytes =  xsize*ysize*3*sizeof(int);
-    int padded_bytes = yround*xround*sizeof(int);
-
     unsigned int *dImage;
-    int *dResult;
-    cudaMalloc((unsigned int**) &dImage, padded_bytes);
-    cudaMalloc((int**) &dResult, numbytes);
+    int *dResult1, *dResult2, *dResult3, *dResult4;
 
+    cudaMalloc((unsigned int**) &dImage, bytes);
     cudaMemcpy(dImage, image, bytes, cudaMemcpyHostToDevice);
-    cudaMemset(dResult, 0, numbytes);
+
+    cudaMalloc((int**) &dResult1, bytes);
+    cudaMemset(dResult1, 0, bytes);
+    cudaMalloc((int**) &dResult2, bytes);
+    cudaMemset(dResult2, 0, bytes);
+    cudaMalloc((int**) &dResult3, bytes);
+    cudaMemset(dResult3, 0, bytes);
+    cudaMalloc((int**) &dResult4, bytes);
+    cudaMemset(dResult4, 0, bytes);
+
+    // ==================== VARIABLES FOR DOWNSAMPLING ====================
+    int dsysize = ysize>>1;
+    int dsxsize = xsize>>1;
+    dim3 dsblocks = numBlocks(dsysize, dsxsize, ythreads, xthreads);
+
+    int dsbytes = dsysize*dsxsize*sizeof(int);
+    int *dsResult;
+
+    cudaMalloc((int**) &dsResult, dsbytes);
+    cudaMemset(dsResult, 0, dsbytes);
 
     // Time the kernel
     float elapsed_time;
@@ -295,7 +314,13 @@ int main(int argc, char **argv) {
     cudaEventCreate(&stop);
     cudaEventRecord(start, 0);
 
-    conv<<<blocks, threads>>>(dImage, dResult, xsize);
+    // Convolve 4 times, then downsample
+    conv<<<blocks, threads>>>(dImage, dResult1, xsize);
+    conv<<<blocks, threads>>>((unsigned int *) dResult1, dResult2, xsize);
+    conv<<<blocks, threads>>>((unsigned int *) dResult2, dResult3, xsize);
+    conv<<<blocks, threads>>>((unsigned int *) dResult3, dResult4, xsize);
+
+    downsample<<<dsblocks, threads>>>(dResult4, dsResult, xsize, dsxsize);
 
     cudaDeviceSynchronize();
     cudaEventRecord(stop);
@@ -304,15 +329,19 @@ int main(int argc, char **argv) {
     fprintf(stderr, "%4.4f\n", elapsed_time);
 
     // Copy the result
-    int *result = (int*) memCheck(malloc(numbytes));
-    cudaMemcpy(result, dResult, numbytes, cudaMemcpyDeviceToHost);
+    int *result = (int*) memCheck(malloc(dsbytes));
+    cudaMemcpy(result, dsResult, dsbytes, cudaMemcpyDeviceToHost);
 
     // Write the ppm file
-    write_ppm("result.ppm", xsize, ysize, 255, result);
+    write_ppm("result.ppm", dsxsize, dsysize, 255, result);
 
     // Free memory
     cudaFree(dImage);
-    cudaFree(dResult);
+    cudaFree(dResult1);
+    cudaFree(dResult2);
+    cudaFree(dResult3);
+    cudaFree(dResult4);
+    cudaFree(dsResult);
     free(image);
     free(result);
 }

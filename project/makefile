@@ -12,4 +12,4 @@ $(EXECUTABLE): $(SOURCE)
 	$(CC) $(FLAGS) $(INCLUDE) $< -o $@ 
 
 clean:
-	rm -f analysis.nvvp result.ppm scattering scattering.out scattering.err
+	rm -f analysis.nvvp core* result.ppm scattering scattering.out scattering.err
