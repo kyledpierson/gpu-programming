@@ -1,15 +1,15 @@
 CC=/usr/local/cuda/bin/nvcc
 INCLUDE=-I/usr/local/cuda/include \
 
-SOURCE=scattering.cu
-EXECUTABLE=scattering
+SOURCE=main.cpp iohandler.cpp scatter.cu
+EXECUTABLE=scatter
 FLAGS=
 
 #FOR DEBUGGING
 #FLAGS=-g
 
 $(EXECUTABLE): $(SOURCE)
-	$(CC) $(FLAGS) $(INCLUDE) $< -o $@ 
+	$(CC) $(FLAGS) $(INCLUDE) $^ -o $@
 
 clean:
-	rm -f analysis.nvvp core* result.ppm scattering scattering.out scattering.err
+	rm -f analysis.nvvp core* result.ppm scatter scatter.out scatter.err
