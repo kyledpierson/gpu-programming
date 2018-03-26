@@ -18,21 +18,27 @@ int main(int argc, char **argv) {
     }
 
     // Read image
-    int xsize, ysize, maxval;
-    unsigned int *image = read_ppm(filename, xsize, ysize, maxval);
-    int bytes = ysize*xsize*sizeof(int);
+    int x_size, y_size, maxval;
+    unsigned int *image = read_ppm(filename, x_size, y_size, maxval);
+    int bytes = x_size * y_size * sizeof(int);
 
     // Account for downsampling
-    int dsysize = ysize>>1;
-    int dsxsize = xsize>>1;
-    int dsbytes = dsysize*dsxsize*sizeof(int);
-    int *result = (int*) memCheck(malloc(dsbytes));
+    int ds_x_size = x_size>>1;
+    int ds_y_size = y_size>>1;
+
+    int ds_bytes = ds_x_size * ds_y_size * sizeof(int);
+    int *result = (int*) mem_check(malloc(ds_bytes));
 
     // Compute the scattering transform
-    scatter(image, result, xsize, ysize, bytes, dsxsize, dsysize, dsbytes);
+    // MATLAB SEQUENTIAL CODE TIME: 1.0044830 seconds
+    // 2D SCATTER TIME:             0.0033391 seconds
+    // SEPARABLE SCATTER TIME:      0.0008100 seconds
+
+    scatter(image, result, x_size, y_size, bytes, ds_x_size, ds_y_size, ds_bytes);
+    // scatter_separable(image, result, x_size, y_size, bytes, ds_x_size, ds_y_size, ds_bytes);
 
     // Write the result
-    write_ppm("result.ppm", dsxsize, dsysize, 255, result);
+    write_ppm("result.ppm", ds_x_size, ds_y_size, 255, result);
 
     // Free memory
     free(image);

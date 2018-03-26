@@ -1,7 +1,16 @@
 #ifndef SCATTER_H
 #define SCATTER_H
 
-void scatter(unsigned int *image, int *result, int xsize, int ysize, int bytes, int dsxsize, int dsysize, int dsbytes);
+#define HALO_SIZE    3
+#define KERNEL_SIZE  (2 * HALO_SIZE + 1)
+
+#define BLOCKDIM_X   16
+#define BLOCKDIM_Y   8
+#define RESULT_STEPS 8
+#define HALO_STEPS   1
+
+void scatter(unsigned int *image, int *result, int x_size, int y_size, int bytes, int ds_x_size, int ds_y_size, int ds_bytes);
+void scatter_separable(unsigned int *image, int *result, int x_size, int y_size, int bytes, int ds_x_size, int ds_y_size, int ds_bytes);
 
 #endif
 

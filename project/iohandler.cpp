@@ -6,7 +6,7 @@
 
 #include "iohandler.h"
 
-void* memCheck(void* mem) {
+void* mem_check(void* mem) {
     // Make sure memory is allocated
     if (!mem) {
         fprintf(stderr, "Unable to allocate bytes\n");
@@ -48,12 +48,12 @@ unsigned int *read_ppm(char *filename, int & xsize, int & ysize, int & maxval) {
     ysize = height;
     maxval = maxvalue;
 
-    unsigned int *pic = (unsigned int *) memCheck(malloc( width * height * sizeof(unsigned int)));
+    unsigned int *pic = (unsigned int *) mem_check(malloc( width * height * sizeof(unsigned int)));
 
     // allocate buffer to read the rest of the file into
     int bufsize =  3 * width * height * sizeof(unsigned char);
     if (maxval > 255) bufsize *= 2;
-    unsigned char *buf = (unsigned char *) memCheck(malloc(bufsize));
+    unsigned char *buf = (unsigned char *) mem_check(malloc(bufsize));
 
     // TODO really read
     char duh[80];
