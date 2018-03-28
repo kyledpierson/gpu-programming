@@ -1,6 +1,7 @@
 #include "Job.h"
 #include <iostream>
 #include "JobScheduler.h"
+#include "Log.h"
 
 Job::Job()
 {
@@ -19,7 +20,7 @@ cudaStream_t& Job::getStream()
 void Job::execute()
 {
     //TODO: get a real logging set of macros, at the least
-    std::cout << "Executing lambda with cuda instructions" << std::endl;
+    LOG_DEBUG("Executing Job with cuda instructions");
     _executionLambda(_stream);
 }
 

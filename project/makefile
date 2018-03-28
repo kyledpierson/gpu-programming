@@ -3,7 +3,7 @@
 CC=/opt/cuda/bin/nvcc
 INCLUDE=-I/opt/cuda/include
 
-SOURCE=main.cpp iohandler.cpp scatter.cu scatter_separable.cu JobScheduler.cpp Job.cpp
+SOURCE=main.cpp iohandler.cpp scatter.cu scatter_separable.cu JobScheduler.cpp Job.cpp Log.cpp
 EXECUTABLE=scatter
 FLAGS=
 
