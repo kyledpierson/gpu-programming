@@ -6,6 +6,7 @@
 
 #include "iohandler.h"
 #include "scatter.h"
+#include "JobScheduler.h"
 
 #define DEFAULT_FILENAME "mountains.ppm"
 
@@ -34,7 +35,10 @@ int main(int argc, char **argv) {
     // 2D SCATTER TIME:             0.0033391 seconds
     // SEPARABLE SCATTER TIME:      0.0008100 seconds
 
-    scatter(image, result, x_size, y_size, bytes, ds_x_size, ds_y_size, ds_bytes);
+    //2 gigs, 1 job max
+    JobScheduler scheduler(2 * 1024 * 1024 * 1024,1);
+
+    scatter(&scheduler, image, result, x_size, y_size, bytes, ds_x_size, ds_y_size, ds_bytes);
     // scatter_separable(image, result, x_size, y_size, bytes, ds_x_size, ds_y_size, ds_bytes);
 
     // Write the result

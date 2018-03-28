@@ -77,56 +77,66 @@ __global__ void convolution_2D(unsigned int *image, int *result, int x_size, int
 // ============================================================================
 // ============================================================================
 // ============================================================================
-void scatter(unsigned int *image, int *result, int x_size, int y_size, int bytes, int ds_x_size, int ds_y_size, int ds_bytes) {
+void scatter(JobScheduler* scheduler,unsigned int *image, int *result, int x_size, int y_size, int bytes, int ds_x_size, int ds_y_size, int ds_bytes) {
+    uint64_t totalRequiredMemory = ds_bytes + bytes + bytes;
     // ====================== VARIABLES FOR CONVOLUTION =======================
-    int x_active = BLOCKDIM_X-(2*HALO_SIZE);
-    int y_active = BLOCKDIM_Y-(2*HALO_SIZE);
+    auto lambda = [=] (cudaStream_t& stream) 
+    {
+        int x_active = BLOCKDIM_X-(2*HALO_SIZE);
+        int y_active = BLOCKDIM_Y-(2*HALO_SIZE);
 
-    dim3 blocks = num_blocks(x_size, y_size, x_active, y_active);
-    dim3 threads(BLOCKDIM_X, BLOCKDIM_Y);
+        dim3 blocks = num_blocks(x_size, y_size, x_active, y_active);
+        dim3 threads(BLOCKDIM_X, BLOCKDIM_Y);
 
-    // Allocate memory
-    unsigned int *d_image;
-    cudaMalloc((unsigned int**) &d_image, bytes);
-    cudaMemcpy(d_image, image, bytes, cudaMemcpyHostToDevice);
+        // Allocate memory
+        unsigned int *d_image;
+        int *d_result;
+        int *ds_result;
+        cudaMalloc((int**) &ds_result, ds_bytes);
+        cudaMalloc((unsigned int**) &d_image, bytes);
+        cudaMalloc((int**) &d_result, bytes);
 
-    int *d_result;
-    cudaMalloc((int**) &d_result, bytes);
-    cudaMemset(d_result, 0, bytes);
+        cudaMemcpyAsync(d_image, image, bytes, cudaMemcpyHostToDevice,stream);
+        cudaMemsetAsync(d_result, 0, bytes,stream);
 
-    // ====================== VARIABLES FOR DOWNSAMPLING ======================
-    dim3 ds_blocks = num_blocks(ds_x_size, ds_y_size, BLOCKDIM_X, BLOCKDIM_Y);
+        // ====================== VARIABLES FOR DOWNSAMPLING ======================
+        dim3 ds_blocks = num_blocks(ds_x_size, ds_y_size, BLOCKDIM_X, BLOCKDIM_Y);
 
-    // Allocate memory
-    int *ds_result;
-    cudaMalloc((int**) &ds_result, ds_bytes);
-    cudaMemset(ds_result, 0, ds_bytes);
+        // Allocate memory
+        cudaMemsetAsync(ds_result, 0, ds_bytes,stream);
 
-    // ===================== CONVOLUTION AND DOWNSAMPLING =====================
-    float elapsed_time;
-    cudaEvent_t start,stop;
+        // ===================== CONVOLUTION AND DOWNSAMPLING =====================
+        //float elapsed_time;
+        cudaEvent_t start,stop;
 
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-    cudaEventRecord(start, 0);
+        cudaEventCreate(&start);
+        cudaEventCreate(&stop);
+        cudaEventRecord(start, 0);
 
-    // Convolve and downsample
-    convolution_2D<<<blocks, threads>>>(d_image, d_result, x_size, y_size);
-    downsample<<<ds_blocks, threads>>>(d_result, ds_result, x_size, ds_x_size);
-    cudaDeviceSynchronize();
+        // Convolve and downsample
+        convolution_2D<<<blocks, threads,0,stream>>>(d_image, d_result, x_size, y_size);
+        downsample<<<ds_blocks, threads,0,stream>>>(d_result, ds_result, x_size, ds_x_size);
 
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
-    cudaEventElapsedTime(&elapsed_time,start, stop);
+/*
+        cudaEventRecord(stop);
+        cudaEventSynchronize(stop);
+        cudaEventElapsedTime(&elapsed_time,start, stop);
 
-    // Copy the result
-    cudaMemcpy(result, ds_result, ds_bytes, cudaMemcpyDeviceToHost);
+        // Copy the result
+        cudaMemcpy(result, ds_result, ds_bytes, cudaMemcpyDeviceToHost);
 
-    // Free memory
-    cudaFree(d_image);
-    cudaFree(d_result);
-    cudaFree(ds_result);
+        // Free memory
+        cudaFree(d_image);
+        cudaFree(d_result);
+        cudaFree(ds_result);
 
-    fprintf(stderr, "TIME: %4.4f\n", elapsed_time);
+        fprintf(stderr, "TIME: %4.4f\n", elapsed_time);
+        */
+
+    };
+    Job* job = scheduler->addJob();
+    job->setupJob(lambda,totalRequiredMemory,"");
+    job->queue();
+
 }
 

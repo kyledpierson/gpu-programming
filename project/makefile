@@ -1,7 +1,9 @@
-CC=/usr/local/cuda/bin/nvcc
-INCLUDE=-I/usr/local/cuda/include \
+#CC=/usr/local/cuda/bin/nvcc
+#INCLUDE=-I/usr/local/cuda/include
+CC=/opt/cuda/bin/nvcc
+INCLUDE=-I/opt/cuda/include
 
-SOURCE=main.cpp iohandler.cpp scatter.cu scatter_separable.cu
+SOURCE=main.cpp iohandler.cpp scatter.cu scatter_separable.cu JobScheduler.cpp Job.cpp
 EXECUTABLE=scatter
 FLAGS=
 

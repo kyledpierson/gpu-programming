@@ -9,7 +9,9 @@
 #define RESULT_STEPS 8
 #define HALO_STEPS   1
 
-void scatter(unsigned int *image, int *result, int x_size, int y_size, int bytes, int ds_x_size, int ds_y_size, int ds_bytes);
+#include "JobScheduler.h"
+
+void scatter(JobScheduler* scheduler,unsigned int *image, int *result, int x_size, int y_size, int bytes, int ds_x_size, int ds_y_size, int ds_bytes);
 void scatter_separable(unsigned int *image, int *result, int x_size, int y_size, int bytes, int ds_x_size, int ds_y_size, int ds_bytes);
 
 #endif
