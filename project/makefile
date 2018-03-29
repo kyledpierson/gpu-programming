@@ -1,7 +1,7 @@
 CC=/usr/local/cuda/bin/nvcc
 INCLUDE=-I/usr/local/cuda/include \
 
-SOURCE=main.cpp iohandler.cpp scatter.cu scatter_separable.cu
+SOURCE=main.cpp iohandler.cpp scatter.cu
 EXECUTABLE=scatter
 FLAGS=
 

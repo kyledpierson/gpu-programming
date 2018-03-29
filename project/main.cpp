@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
     scatter(fimage, fresult,
             x_size, y_size, bytes,
             ds_x_size_1, ds_y_size_1, ds_bytes_1,
-            ds_x_size_2, ds_y_size_2, ds_bytes_2);
+            ds_x_size_2, ds_y_size_2, ds_bytes_2, false);
     // scatter_separable(fimage, fresult, x_size, y_size, bytes, ds_x_size, ds_y_size, ds_bytes);
 
     // Copy to int result

@@ -10,6 +10,11 @@
 #include "scatter.h"
 
 // ============================= HELPER FUNCTIONS =============================
+__constant__ float d_kernel[KERNEL_SIZE];
+void copy_kernel_1D(float h_kernel[KERNEL_SIZE]) {
+    cudaMemcpyToSymbol(d_kernel, h_kernel, KERNEL_SIZE * sizeof(float));
+}
+
 dim3 num_blocks(int x_size, int y_size, int x_threads, int y_threads) {
     // Compute the number of blocks needed for entire image
     if (x_size % x_threads) {
@@ -25,7 +30,7 @@ dim3 num_blocks(int x_size, int y_size, int x_threads, int y_threads) {
     return blocks;
 }
 
-// ============================= KERNEL FUNCTIONS =============================
+// ============================= DEVICE FUNCTIONS =============================
 __device__ float convolution_pixel_2D_complex(cuFloatComplex tile[BLOCKDIM_Y][BLOCKDIM_X+1], cuFloatComplex filter[KERNEL_SIZE][KERNEL_SIZE], int x, int y) {
     cuFloatComplex value = make_cuFloatComplex(0, 0);
 
@@ -50,6 +55,7 @@ __device__ float convolution_pixel_2D(float tile[BLOCKDIM_Y][BLOCKDIM_X+1], floa
     return value;
 }
 
+// ============================= KERNEL FUNCTIONS =============================
 __global__ void gaussian_convolution_2D(float *image, float *result, int x_size, int ds_x_size) {
     float gaussian_2D[7][7] = {
         {0.00000019, 0.00009657, 0.00010063, 0.00021979, 0.00010063, 0.00009657, 0.00000019},
@@ -161,13 +167,129 @@ __global__ void morlet_2_convolution_2D(float *image, float *result, int x_size)
     }
 }
 
+__global__ void gaussian_convolution_row(float *image, float *result, int x_size, int y_size) {
+    __shared__ float tile[BLOCKDIM_Y][(RESULT_STEPS + 2*HALO_STEPS) * BLOCKDIM_X];
+
+    // Offset to the left halo edge
+    const int x_start = (blockIdx.x * RESULT_STEPS - HALO_STEPS) * BLOCKDIM_X + threadIdx.x;
+    const int y_start = blockIdx.y * BLOCKDIM_Y + threadIdx.y;
+
+    image += y_start * x_size + x_start;
+    result += y_start * x_size + x_start;
+
+#pragma unroll
+    // Load left halo
+    for (int i = 0; i < HALO_STEPS; i++) {
+        tile[threadIdx.y][threadIdx.x + i * BLOCKDIM_X] = (x_start >= -i * BLOCKDIM_X) ? image[i * BLOCKDIM_X] : 0;
+    }
+
+#pragma unroll
+    // Load main data
+    for (int i = HALO_STEPS; i < HALO_STEPS + RESULT_STEPS; i++) {
+        tile[threadIdx.y][threadIdx.x + i * BLOCKDIM_X] = image[i * BLOCKDIM_X];
+    }
+
+#pragma unroll
+    // Load right halo
+    for (int i = HALO_STEPS + RESULT_STEPS; i < HALO_STEPS + RESULT_STEPS + HALO_STEPS; i++) {
+        tile[threadIdx.y][threadIdx.x + i * BLOCKDIM_X] = (x_size - x_start > i * BLOCKDIM_X) ? image[i * BLOCKDIM_X] : 0;
+    }
+
+    __syncthreads();
+
+#pragma unroll
+    // Compute results
+    for (int i = HALO_STEPS; i < HALO_STEPS + RESULT_STEPS; i++) {
+        float sum = 0;
+
+#pragma unroll
+        for (int j = -HALO_SIZE; j <= HALO_SIZE; j++) {
+            sum += d_kernel[HALO_SIZE - j] * tile[threadIdx.y][threadIdx.x + i * BLOCKDIM_X + j];
+        }
+        result[i * BLOCKDIM_X] = sum;
+    }
+}
+
+__global__ void gaussian_convolution_col(float *image, float *result, int x_size, int y_size) {
+    __shared__ float tile[BLOCKDIM_X][(RESULT_STEPS + 2*HALO_STEPS) * BLOCKDIM_Y + 1];
+
+    // Offset to the upper halo edge
+    const int x_start = blockIdx.x * BLOCKDIM_X + threadIdx.x;
+    const int y_start = (blockIdx.y * RESULT_STEPS - HALO_STEPS) * BLOCKDIM_Y + threadIdx.y;
+    image += y_start * x_size + x_start;
+    result += y_start * x_size + x_start;
+
+#pragma unroll
+    //Upper halo
+    for (int i = 0; i < HALO_STEPS; i++) {
+        tile[threadIdx.x][threadIdx.y + i * BLOCKDIM_Y] = (y_start >= -i * BLOCKDIM_Y) ? image[i * BLOCKDIM_Y * x_size] : 0;
+    }
+
+#pragma unroll
+    //Main data
+    for (int i = HALO_STEPS; i < HALO_STEPS + RESULT_STEPS; i++) {
+        tile[threadIdx.x][threadIdx.y + i * BLOCKDIM_Y] = image[i * BLOCKDIM_Y * x_size];
+    }
+
+#pragma unroll
+    //Lower halo
+    for (int i = HALO_STEPS + RESULT_STEPS; i < HALO_STEPS + RESULT_STEPS + HALO_STEPS; i++) {
+        tile[threadIdx.x][threadIdx.y + i * BLOCKDIM_Y] = (y_size - y_start > i * BLOCKDIM_Y) ? image[i * BLOCKDIM_Y * x_size] : 0;
+    }
+
+    __syncthreads();
+
+#pragma unroll
+    //Compute results
+    for (int i = HALO_STEPS; i < HALO_STEPS + RESULT_STEPS; i++) {
+        float sum = 0;
+
+#pragma unroll
+        for (int j = -HALO_SIZE; j <= HALO_SIZE; j++) {
+            sum += d_kernel[HALO_SIZE - j] * tile[threadIdx.x][threadIdx.y + i * BLOCKDIM_Y + j];
+        }
+        result[i * BLOCKDIM_Y * x_size] = sum;
+    }
+}
+
+__global__ void downsample(float *image, float *ds_image, int x_size, int ds_x_size) {
+    int x_offset = blockIdx.x*BLOCKDIM_X+threadIdx.x;
+    int y_offset = blockIdx.y*BLOCKDIM_Y+threadIdx.y;
+
+    // Save every other pixel in downsampled image
+    ds_image[y_offset*ds_x_size + x_offset] = 2*image[2*(y_offset*x_size + x_offset)];
+}
+
 // ============================================================================
 // ============================================================================
 // ============================================================================
+void gaussian_convolution_1D(float* d_image, float* d_result, int x_size, int y_size, int bytes, int ds_x_size, int ds_y_size, int ds_bytes) {
+    float gaussian_1D[7] = {0.000395, 0.021639, 0.229031, 0.497871, 0.229031, 0.021639, 0.000395};
+    copy_kernel_1D(gaussian_1D);
+
+    dim3 blocks_row(x_size / (RESULT_STEPS * BLOCKDIM_X), y_size / BLOCKDIM_Y);
+    dim3 blocks_col(x_size / BLOCKDIM_X, y_size / (RESULT_STEPS * BLOCKDIM_Y));
+    dim3 ds_blocks = num_blocks(ds_x_size, ds_y_size, BLOCKDIM_X, BLOCKDIM_Y);
+    dim3 threads(BLOCKDIM_X, BLOCKDIM_Y);
+
+    float *d_buffer_row, *d_buffer_col;
+    cudaMalloc((float**) &d_buffer_row, bytes);
+    cudaMalloc((float**) &d_buffer_col, bytes);
+    cudaMemset(d_buffer_row, 0, bytes);
+    cudaMemset(d_buffer_col, 0, bytes);
+
+    gaussian_convolution_row<<<blocks_row, threads>>>(d_image, d_buffer_row, x_size, y_size);
+    gaussian_convolution_col<<<blocks_col, threads>>>(d_buffer_row, d_buffer_col, x_size, y_size);
+    downsample<<<ds_blocks, threads>>>(d_buffer_col, d_result, x_size, ds_x_size);
+
+    cudaFree(d_buffer_row);
+    cudaFree(d_buffer_col);
+}
+
 void scatter(float *image, float *result,
              int x_size, int y_size, int bytes,
              int ds_x_size_1, int ds_y_size_1, int ds_bytes_1,
-             int ds_x_size_2, int ds_y_size_2, int ds_bytes_2) {
+             int ds_x_size_2, int ds_y_size_2, int ds_bytes_2, bool separable) {
     int x_active = BLOCKDIM_X-(2*HALO_SIZE);
     int y_active = BLOCKDIM_Y-(2*HALO_SIZE);
 
@@ -223,8 +345,13 @@ void scatter(float *image, float *result,
 
     // ========================================================================
     // Layer 1 - low pass
-    gaussian_convolution_2D<<<blocks, threads>>>(d_image, lp_1, x_size, ds_x_size_1);
-    gaussian_convolution_2D<<<ds_blocks, threads>>>(lp_1, lp_2, ds_x_size_1, ds_x_size_2);
+    if (separable) {
+        gaussian_convolution_1D(d_image, lp_1, x_size, y_size, bytes, ds_x_size_1, ds_y_size_1, ds_bytes_1);
+        gaussian_convolution_1D(lp_1, lp_2, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
+    } else {
+        gaussian_convolution_2D<<<blocks, threads>>>(d_image, lp_1, x_size, ds_x_size_1);
+        gaussian_convolution_2D<<<ds_blocks, threads>>>(lp_1, lp_2, ds_x_size_1, ds_x_size_2);
+    }
 
     // Layer 1 - high pass
     morlet_1_convolution_2D<<<blocks, threads>>>(d_image, hp_1, x_size);
