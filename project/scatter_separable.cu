@@ -1,19 +1,15 @@
-#include <complex.h>
-#include "cuda.h"
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include "string.h"
+#include <string.h>
 #include <unistd.h>
+
+#include <cuda.h>
+#include <cuComplex.h>
 
 #include "scatter.h"
 
 // ============================= HELPER FUNCTIONS =============================
-__constant__ float d_kernel[KERNEL_SIZE];
-void copy_kernel_1D(float h_kernel[KERNEL_SIZE]) {
-    cudaMemcpyToSymbol(d_kernel, h_kernel, KERNEL_SIZE * sizeof(float));
-}
-
 dim3 num_blocks_separable(int x_size, int y_size, int x_threads, int y_threads) {
     // Compute the number of blocks needed for entire image
     if (x_size % x_threads) {
@@ -29,8 +25,13 @@ dim3 num_blocks_separable(int x_size, int y_size, int x_threads, int y_threads) 
     return blocks;
 }
 
+__constant__ float d_kernel[KERNEL_SIZE];
+void copy_kernel_1D(float h_kernel[KERNEL_SIZE]) {
+    cudaMemcpyToSymbol(d_kernel, h_kernel, KERNEL_SIZE * sizeof(float));
+}
+
 // ============================= KERNEL FUNCTIONS =============================
-__global__ void convolution_row(unsigned int *image, int *result, int x_size, int y_size) {
+__global__ void convolution_row(float *image, float *result, int x_size, int y_size) {
     __shared__ float tile[BLOCKDIM_Y][(RESULT_STEPS + 2 * HALO_STEPS) * BLOCKDIM_X];
 
     // Offset to the left halo edge
@@ -73,7 +74,7 @@ __global__ void convolution_row(unsigned int *image, int *result, int x_size, in
     }
 }
 
-__global__ void convolution_col(unsigned int *image, int *result, int x_size, int y_size) {
+__global__ void convolution_col(float *image, float *result, int x_size, int y_size) {
     __shared__ float tile[BLOCKDIM_X][(RESULT_STEPS + 2 * HALO_STEPS) * BLOCKDIM_Y + 1];
 
     // Offset to the upper halo edge
@@ -115,7 +116,7 @@ __global__ void convolution_col(unsigned int *image, int *result, int x_size, in
     }
 }
 
-__global__ void downsample_separable(int *image, int *ds_image, int x_size, int ds_x_size) {
+__global__ void downsample_separable(float *image, float *ds_image, int x_size, int ds_x_size) {
     int x_offset = blockIdx.x*BLOCKDIM_X+threadIdx.x;
     int y_offset = blockIdx.y*BLOCKDIM_Y+threadIdx.y;
 
@@ -123,7 +124,7 @@ __global__ void downsample_separable(int *image, int *ds_image, int x_size, int 
     ds_image[y_offset*ds_x_size + x_offset] = image[2*(y_offset*x_size + x_offset)];
 }
 
-void scatter_separable(unsigned int *image, int *result, int x_size, int y_size, int bytes, int ds_x_size, int ds_y_size, int ds_bytes) {
+void scatter_separable(float *image, float *result, int x_size, int y_size, int bytes, int ds_x_size, int ds_y_size, int ds_bytes) {
     float gaussian_1D[7] = {0.000395, 0.021639, 0.229031, 0.497871, 0.229031, 0.021639, 0.000395};
     copy_kernel_1D(gaussian_1D);
 
@@ -132,21 +133,21 @@ void scatter_separable(unsigned int *image, int *result, int x_size, int y_size,
     dim3 blocks_col(x_size / BLOCKDIM_X, y_size / (RESULT_STEPS * BLOCKDIM_Y));
     dim3 threads(BLOCKDIM_X, BLOCKDIM_Y);
 
-    unsigned int *d_image;
-    cudaMalloc((unsigned int**) &d_image, bytes);
+    float *d_image;
+    cudaMalloc((float**) &d_image, bytes);
     cudaMemcpy(d_image, image, bytes, cudaMemcpyHostToDevice);
 
-    int *d_buffer_row, *d_buffer_col;
-    cudaMalloc((int**) &d_buffer_row, bytes);
-    cudaMalloc((int**) &d_buffer_col, bytes);
+    float *d_buffer_row, *d_buffer_col;
+    cudaMalloc((float**) &d_buffer_row, bytes);
+    cudaMalloc((float**) &d_buffer_col, bytes);
     cudaMemset(d_buffer_row, 0, bytes);
     cudaMemset(d_buffer_col, 0, bytes);
 
     // ====================== VARIABLES FOR DOWNSAMPLING ======================
     dim3 ds_blocks = num_blocks_separable(ds_x_size, ds_y_size, BLOCKDIM_X, BLOCKDIM_Y);
 
-    int *ds_result;
-    cudaMalloc((int**) &ds_result, ds_bytes);
+    float *ds_result;
+    cudaMalloc((float**) &ds_result, ds_bytes);
     cudaMemset(ds_result, 0, ds_bytes);
 
     // ===================== CONVOLUTION AND DOWNSAMPLING =====================
@@ -159,7 +160,7 @@ void scatter_separable(unsigned int *image, int *result, int x_size, int y_size,
 
     // Convolve and downsample
     convolution_row<<<blocks_row, threads>>>(d_image, d_buffer_row, x_size, y_size);
-    convolution_col<<<blocks_col, threads>>>((unsigned int *) d_buffer_row, d_buffer_col, x_size, y_size);
+    convolution_col<<<blocks_col, threads>>>(d_buffer_row, d_buffer_col, x_size, y_size);
     downsample_separable<<<ds_blocks, threads>>>(d_buffer_col, ds_result, x_size, ds_x_size);
     cudaDeviceSynchronize();
 
