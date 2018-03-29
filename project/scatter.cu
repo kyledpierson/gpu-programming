@@ -75,7 +75,7 @@ __global__ void gaussian_convolution_2D(float *image, float *result, int x_size,
 
     // Each interior thread computes output
     if (x>=HALO_SIZE && x<blockDim.x-HALO_SIZE && y>=HALO_SIZE && y<blockDim.y-HALO_SIZE) {
-        result[(y_offset/2)*ds_x_size + (x_offset/2)] = convolution_pixel_2D(tile, gaussian_2D, x, y);
+        result[(y_offset/2)*ds_x_size + (x_offset/2)] = 2*convolution_pixel_2D(tile, gaussian_2D, x, y);
     }
 }
 

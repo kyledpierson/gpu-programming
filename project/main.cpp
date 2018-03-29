@@ -40,8 +40,6 @@ int main(int argc, char **argv) {
 
     int *result = (int*) mem_check(malloc(ds_bytes_2*5));
     float *fresult = (float*) mem_check(malloc(ds_bytes_2*5));
-    //int *result = (int*) mem_check(malloc(ds_bytes_1));
-    //float *fresult = (float*) mem_check(malloc(ds_bytes_1));
 
     // Compute the scattering transform
     scatter(fimage, fresult,
@@ -51,8 +49,12 @@ int main(int argc, char **argv) {
     // scatter_separable(fimage, fresult, x_size, y_size, bytes, ds_x_size, ds_y_size, ds_bytes);
 
     // Copy to int result
+    maxval = 0;
     for(int i = 0; i < ds_x_size_2*ds_y_size_2*5; i++) {
         result[i] = fresult[i] * 255;
+        if (result[i] > maxval) {
+            maxval = result[i];
+        }
     }
 
     // Write the result
