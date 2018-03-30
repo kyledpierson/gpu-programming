@@ -38,13 +38,15 @@ int main(int argc, char **argv) {
     //2 gigs, 1 job max
     JobScheduler scheduler(2 * 1024 * 1024 * 1024,1);
 
-    scatter(&scheduler, image, result, x_size, y_size, bytes, ds_x_size, ds_y_size, ds_bytes);
+    scatter(&scheduler, image, std::string("result.ppm"), x_size, y_size, bytes, ds_x_size, ds_y_size, ds_bytes);
     // scatter_separable(image, result, x_size, y_size, bytes, ds_x_size, ds_y_size, ds_bytes);
 
     // Write the result
-    write_ppm("result.ppm", ds_x_size, ds_y_size, 255, result);
+    //write_ppm("result.ppm", ds_x_size, ds_y_size, 255, result);
 
     // Free memory
     free(image);
-    free(result);
+    //free(result);
+    //Block waiting for all jobs to complete...
+    scheduler.waitUntilDone();
 }

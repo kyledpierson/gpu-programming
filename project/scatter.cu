@@ -77,8 +77,9 @@ __global__ void convolution_2D(unsigned int *image, int *result, int x_size, int
 // ============================================================================
 // ============================================================================
 // ============================================================================
-void scatter(JobScheduler* scheduler,unsigned int *image, int *result, int x_size, int y_size, int bytes, int ds_x_size, int ds_y_size, int ds_bytes) {
+void scatter(JobScheduler* scheduler,unsigned int *image, std::string outputFile, int x_size, int y_size, int bytes, int ds_x_size, int ds_y_size, int ds_bytes) {
     uint64_t totalRequiredMemory = ds_bytes + bytes + bytes;
+    Job* job = scheduler->addJob();
     // ====================== VARIABLES FOR CONVOLUTION =======================
     auto lambda = [=] (cudaStream_t& stream) 
     {
@@ -106,36 +107,21 @@ void scatter(JobScheduler* scheduler,unsigned int *image, int *result, int x_siz
         cudaMemsetAsync(ds_result, 0, ds_bytes,stream);
 
         // ===================== CONVOLUTION AND DOWNSAMPLING =====================
-        //float elapsed_time;
-        cudaEvent_t start,stop;
-
-        cudaEventCreate(&start);
-        cudaEventCreate(&stop);
-        cudaEventRecord(start, 0);
+        cudaStreamSynchronize(stream);
 
         // Convolve and downsample
         convolution_2D<<<blocks, threads,0,stream>>>(d_image, d_result, x_size, y_size);
         downsample<<<ds_blocks, threads,0,stream>>>(d_result, ds_result, x_size, ds_x_size);
 
-/*
-        cudaEventRecord(stop);
-        cudaEventSynchronize(stop);
-        cudaEventElapsedTime(&elapsed_time,start, stop);
-
-        // Copy the result
-        cudaMemcpy(result, ds_result, ds_bytes, cudaMemcpyDeviceToHost);
-
-        // Free memory
-        cudaFree(d_image);
-        cudaFree(d_result);
-        cudaFree(ds_result);
-
-        fprintf(stderr, "TIME: %4.4f\n", elapsed_time);
-        */
+        //Implicit sync
+        job->addFree(d_image);
+        job->addFree(d_result);
+        job->addFree(ds_result);
+        job->addResultInfo(ds_result,ds_bytes,ds_x_size,ds_y_size);
+        cudaStreamAddCallback(stream,&Job::cudaCb,(void*)job,0);
 
     };
-    Job* job = scheduler->addJob();
-    job->setupJob(lambda,totalRequiredMemory,"");
+    job->setupJob(lambda,totalRequiredMemory,outputFile);
     job->queue();
 
 }

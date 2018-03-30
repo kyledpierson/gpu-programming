@@ -1,9 +1,12 @@
 #include "JobScheduler.h"
+#include <mutex>
+#include "Log.h"
 
 
 JobScheduler::JobScheduler(int memoryHighWater,int maxJobs)
     : _memoryHighWater(memoryHighWater)
     , _maxJobs(maxJobs)
+    , _currentlyRunningJobs(0)
 {
 
 }
@@ -34,7 +37,27 @@ void JobScheduler::_checkIfCanRunJob()
     //For now, just run the jobs
     for(auto job : _jobs)
     {
+        _currentlyRunningJobs++;
         job->execute();
     }
+    _jobs.clear();
+
+}
+
+void JobScheduler::waitUntilDone()
+{
+    std::mutex m;
+    std::unique_lock<std::mutex> lk(m);
+    while(_currentlyRunningJobs > 0 || _jobs.size() > 0)
+        _waitCv.wait(lk);
+    LOG_DEBUG("Falling out of the wait, no more jobs to process");
+
+}
+//TODO: Convert this to use unique Guids as job ids, not the pointer
+void JobScheduler::jobDone(Job* job)
+{
+    _currentlyRunningJobs--;
+    _checkIfCanRunJob();
+    _waitCv.notify_all();
 
 }

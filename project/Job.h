@@ -4,6 +4,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <functional>
+#include <set>
 
 
 class JobScheduler;
@@ -16,11 +17,22 @@ class Job
         void setupJob(std::function<void (cudaStream_t&)> func,uint64_t requiredMemory,const std::string& path);
         void queue();
         void execute();
+        void addFree(void*);
+        void addResultInfo(void* res, uint64_t size, uint64_t xSize, uint64_t ySize) { _resultFrom = res; _resultSize = size; _resultXDim = xSize; _resultYDim = ySize;}
+
+        static void CUDART_CB cudaCb(cudaStream_t stream, cudaError_t status, void *userData);
+
     private: 
         Job();
+        void _internalCb();
 
         cudaStream_t _stream;
+        std::set<void*> _toFree;
+        uint64_t _resultSize;
         uint64_t _requiredBytes;
+        uint64_t _resultXDim;
+        uint64_t _resultYDim;
+        void*    _resultFrom;
         JobScheduler* _scheduler;
         std::string _outputPath;
         std::function<void (cudaStream_t&)> _executionLambda;

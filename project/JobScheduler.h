@@ -5,6 +5,7 @@
 #include <cuda_runtime.h>
 #include <memory>
 #include <vector>
+#include <condition_variable>
 
 class JobScheduler 
 {
@@ -14,14 +15,19 @@ class JobScheduler
 
     Job* addJob();
     void queueUpJob(Job*);
+    void jobDone(Job*);
+
+    void waitUntilDone();
 
     private:
 
         void _checkIfCanRunJob();
         int _maxJobs;
         int _memoryHighWater;
+        int _currentlyRunningJobs;
         //Probably a heap is better
         std::vector<Job*> _jobs;
+        std::condition_variable _waitCv;
 };
 
 

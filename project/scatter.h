@@ -11,7 +11,7 @@
 
 #include "JobScheduler.h"
 
-void scatter(JobScheduler* scheduler,unsigned int *image, int *result, int x_size, int y_size, int bytes, int ds_x_size, int ds_y_size, int ds_bytes);
+void scatter(JobScheduler* scheduler,unsigned int *image, std::string resultName, int x_size, int y_size, int bytes, int ds_x_size, int ds_y_size, int ds_bytes);
 void scatter_separable(unsigned int *image, int *result, int x_size, int y_size, int bytes, int ds_x_size, int ds_y_size, int ds_bytes);
 
 #endif
