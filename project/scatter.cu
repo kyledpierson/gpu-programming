@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include "string.h"
 #include <unistd.h>
+#include "Log.h"
 
 #include "scatter.h"
 
@@ -83,6 +84,7 @@ void scatter(JobScheduler* scheduler,unsigned int *image, std::string outputFile
     // ====================== VARIABLES FOR CONVOLUTION =======================
     auto lambda = [=] (cudaStream_t& stream) 
     {
+        LOG_DEBUG("Job actually running...");
         int x_active = BLOCKDIM_X-(2*HALO_SIZE);
         int y_active = BLOCKDIM_Y-(2*HALO_SIZE);
 
@@ -97,6 +99,7 @@ void scatter(JobScheduler* scheduler,unsigned int *image, std::string outputFile
         cudaMalloc((unsigned int**) &d_image, bytes);
         cudaMalloc((int**) &d_result, bytes);
 
+        LOG_DEBUG("Executing memcpy...");
         cudaMemcpyAsync(d_image, image, bytes, cudaMemcpyHostToDevice,stream);
         cudaMemsetAsync(d_result, 0, bytes,stream);
 
@@ -107,17 +110,24 @@ void scatter(JobScheduler* scheduler,unsigned int *image, std::string outputFile
         cudaMemsetAsync(ds_result, 0, ds_bytes,stream);
 
         // ===================== CONVOLUTION AND DOWNSAMPLING =====================
+        LOG_DEBUG("Synchonizing stream");
         cudaStreamSynchronize(stream);
 
+        //Implicit sync
+        job->addFree(d_image,true);
+        job->addFree(d_result,true);
+        job->addFree(ds_result,true);
+        job->addFree(image,false);
+
+        job->addResultInfo(ds_result,ds_bytes,ds_x_size,ds_y_size);
+
         // Convolve and downsample
+        LOG_DEBUG("EXECUTING KERNELS");
+
         convolution_2D<<<blocks, threads,0,stream>>>(d_image, d_result, x_size, y_size);
         downsample<<<ds_blocks, threads,0,stream>>>(d_result, ds_result, x_size, ds_x_size);
 
-        //Implicit sync
-        job->addFree(d_image);
-        job->addFree(d_result);
-        job->addFree(ds_result);
-        job->addResultInfo(ds_result,ds_bytes,ds_x_size,ds_y_size);
+        LOG_DEBUG("Adding callback...");
         cudaStreamAddCallback(stream,&Job::cudaCb,(void*)job,0);
 
     };

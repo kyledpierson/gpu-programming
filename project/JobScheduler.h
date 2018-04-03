@@ -10,7 +10,7 @@
 class JobScheduler 
 {
     public:
-    JobScheduler(int memoryHighWaterMark,int maxJobs);
+    JobScheduler(int maxJobs);
     ~JobScheduler();
 
     Job* addJob();
@@ -21,9 +21,11 @@ class JobScheduler
 
     private:
 
+        size_t memoryAvailable() const;
+        uint64_t highWaterMark() const;
         void _checkIfCanRunJob();
         int _maxJobs;
-        int _memoryHighWater;
+        uint64_t _currentMemoryUsage;
         int _currentlyRunningJobs;
         //Probably a heap is better
         std::vector<Job*> _jobs;

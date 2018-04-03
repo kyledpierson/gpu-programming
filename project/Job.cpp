@@ -36,10 +36,9 @@ void Job::queue()
     _scheduler->queueUpJob(this);
 }
 
-void Job::addFree(void* toFree)
+void Job::addFree(void* toFree,bool cuda)
 {
-    _toFree.insert(toFree);
-
+    _toFree.insert(std::make_pair(cuda,toFree));
 }
 
 
@@ -57,9 +56,12 @@ void Job::_internalCb()
     LOG_DEBUG("Calling specific job callback");
     int *result = (int*) mem_check(malloc(_resultSize));
     cudaMemcpy(result, _resultFrom, _resultSize, cudaMemcpyDeviceToHost);
-    for(void* item : _toFree)
+    for(std::pair<bool,void*> item : _toFree)
     {
-        cudaFree(item);
+        if(item.first)
+            cudaFree(item.second);
+        else
+            free(item.second);
     }
     //Once we know, write out the result file
     //TODO: Temporary, just dump the file
