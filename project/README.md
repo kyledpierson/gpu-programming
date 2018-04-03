@@ -41,6 +41,13 @@ sbatch runscript.sh
 ```
 this will save the result in a file called `result.ppm`
 
+### Results
+These results were acquired by performing the scattering transform on the image "mountains.ppm".
+Sequential: 3.6781156 seconds
+Spatial 2D: 0.0257737 seconds
+Spatial 1D: 0.0456419 seconds
+Fourier:    ???
+
 ### References
 S. Mallat, "Group Invariant Scattering," _Communications in Pure and Applied
 Mathematics_, vol. 65, pp. 1331-1398, October 2012.

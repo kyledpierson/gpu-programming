@@ -10,6 +10,9 @@
 #define DEFAULT_FILENAME "mountains.ppm"
 
 int main(int argc, char **argv) {
+    // VARIABLES
+    bool separable = false;
+
     // Read parameters
     char *filename = strdup(DEFAULT_FILENAME);
     if (argc > 1) {
@@ -45,8 +48,7 @@ int main(int argc, char **argv) {
     scatter(fimage, fresult,
             x_size, y_size, bytes,
             ds_x_size_1, ds_y_size_1, ds_bytes_1,
-            ds_x_size_2, ds_y_size_2, ds_bytes_2, false);
-    // scatter_separable(fimage, fresult, x_size, y_size, bytes, ds_x_size, ds_y_size, ds_bytes);
+            ds_x_size_2, ds_y_size_2, ds_bytes_2, separable);
 
     // Copy to int result
     maxval = 0;

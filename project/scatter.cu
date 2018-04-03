@@ -264,9 +264,6 @@ __global__ void downsample(float *image, float *ds_image, int x_size, int ds_x_s
 // ============================================================================
 // ============================================================================
 void gaussian_convolution_1D(float* d_image, float* d_result, int x_size, int y_size, int bytes, int ds_x_size, int ds_y_size, int ds_bytes) {
-    float gaussian_1D[7] = {0.000395, 0.021639, 0.229031, 0.497871, 0.229031, 0.021639, 0.000395};
-    copy_kernel_1D(gaussian_1D);
-
     dim3 blocks_row(x_size / (RESULT_STEPS * BLOCKDIM_X), y_size / BLOCKDIM_Y);
     dim3 blocks_col(x_size / BLOCKDIM_X, y_size / (RESULT_STEPS * BLOCKDIM_Y));
     dim3 ds_blocks = num_blocks(ds_x_size, ds_y_size, BLOCKDIM_X, BLOCKDIM_Y);
@@ -290,6 +287,9 @@ void scatter(float *image, float *result,
              int x_size, int y_size, int bytes,
              int ds_x_size_1, int ds_y_size_1, int ds_bytes_1,
              int ds_x_size_2, int ds_y_size_2, int ds_bytes_2, bool separable) {
+    float gaussian_1D[7] = {0.000395, 0.021639, 0.229031, 0.497871, 0.229031, 0.021639, 0.000395};
+    copy_kernel_1D(gaussian_1D);
+
     int x_active = BLOCKDIM_X-(2*HALO_SIZE);
     int y_active = BLOCKDIM_Y-(2*HALO_SIZE);
 
@@ -360,12 +360,21 @@ void scatter(float *image, float *result,
     morlet_2_convolution_2D<<<ds_blocks, threads>>>(lp_1, hp_4, ds_x_size_1);
 
     // Layer 2 - low pass
-    gaussian_convolution_2D<<<blocks, threads>>>(hp_1, lp_3, x_size, ds_x_size_1);
-    gaussian_convolution_2D<<<ds_blocks, threads>>>(lp_3, lp_4, ds_x_size_1, ds_x_size_2);
-    gaussian_convolution_2D<<<blocks, threads>>>(hp_2, lp_5, x_size, ds_x_size_1);
-    gaussian_convolution_2D<<<ds_blocks, threads>>>(lp_5, lp_6, ds_x_size_1, ds_x_size_2);
-    gaussian_convolution_2D<<<ds_blocks, threads>>>(hp_3, lp_7, ds_x_size_1, ds_x_size_2);
-    gaussian_convolution_2D<<<ds_blocks, threads>>>(hp_4, lp_8, ds_x_size_1, ds_x_size_2);
+    if (separable) {
+        gaussian_convolution_1D(hp_1, lp_3, x_size, y_size, bytes, ds_x_size_1, ds_y_size_1, ds_bytes_1);
+        gaussian_convolution_1D(lp_3, lp_4, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
+        gaussian_convolution_1D(hp_2, lp_5, x_size, y_size, bytes, ds_x_size_1, ds_y_size_1, ds_bytes_1);
+        gaussian_convolution_1D(lp_5, lp_6, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
+        gaussian_convolution_1D(hp_3, lp_7, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
+        gaussian_convolution_1D(hp_4, lp_8, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
+    } else {
+        gaussian_convolution_2D<<<blocks, threads>>>(hp_1, lp_3, x_size, ds_x_size_1);
+        gaussian_convolution_2D<<<ds_blocks, threads>>>(lp_3, lp_4, ds_x_size_1, ds_x_size_2);
+        gaussian_convolution_2D<<<blocks, threads>>>(hp_2, lp_5, x_size, ds_x_size_1);
+        gaussian_convolution_2D<<<ds_blocks, threads>>>(lp_5, lp_6, ds_x_size_1, ds_x_size_2);
+        gaussian_convolution_2D<<<ds_blocks, threads>>>(hp_3, lp_7, ds_x_size_1, ds_x_size_2);
+        gaussian_convolution_2D<<<ds_blocks, threads>>>(hp_4, lp_8, ds_x_size_1, ds_x_size_2);
+    }
 
     cudaDeviceSynchronize();
     cudaEventRecord(stop);
