@@ -5,11 +5,12 @@
 #include <cuda_runtime.h>
 #include <functional>
 #include <set>
+#include <vector>
 
 
 class JobScheduler;
 
-class Job 
+class Job
 {
     public:
         ~Job();
@@ -18,14 +19,28 @@ class Job
         void queue();
         void execute();
         void addFree(void*,bool);
-        void addResultInfo(void* res, uint64_t size, uint64_t xSize, uint64_t ySize) { _resultFrom = res; _resultSize = size; _resultXDim = xSize; _resultYDim = ySize;}
+        void addResultInfo(void* res, uint64_t size, uint64_t offset)
+        {
+            ResultInfo rinfo;
+            rinfo.offset = offset;
+            rinfo.source = res;
+            rinfo.size = size;
+            _results.push_back(std::move(rinfo));
+        }
         uint64_t requiredMemory() const { return _requiredBytes; }
 
         static void CUDART_CB cudaCb(cudaStream_t stream, cudaError_t status, void *userData);
 
-    private: 
+    private:
         Job();
         void _internalCb();
+
+        struct ResultInfo
+        {
+            int64_t offset;
+            void* source;
+            uint64_t size;
+        };
 
         cudaStream_t _stream;
         std::set<std::pair<bool,void*> > _toFree;
@@ -37,12 +52,13 @@ class Job
         JobScheduler* _scheduler;
         std::string _outputPath;
         std::function<void (cudaStream_t&)> _executionLambda;
+        std::vector<ResultInfo> _results;
         /* Speciailize the Job here a bit, we can always make this a lambda,
         but for now we always know we intend to read out a certain sized buffer
         and then write that out to the result location */
 
 
-        
+
 
     friend class JobScheduler;
 

@@ -28,6 +28,7 @@ void Job::execute()
 void Job::setupJob(std::function<void (cudaStream_t&)> func,uint64_t requiredMemory,const std::string& path)
 {
     _executionLambda = func;
+    LOG_DEBUG(std::string("Setting up function to require ") + std::to_string(requiredMemory) + " bytes of memory and output to " + path);
     _requiredBytes = requiredMemory;
     _outputPath = path;
 }
@@ -54,8 +55,21 @@ void Job::_internalCb()
 {
     //Some magic thread pool is calling this callback
     LOG_DEBUG("Calling specific job callback");
-    int *result = (int*) mem_check(malloc(_resultSize));
-    cudaMemcpy(result, _resultFrom, _resultSize, cudaMemcpyDeviceToHost);
+    uint64_t resultSize = 0;
+    //cudaMemcpy(result, _resultFrom, _resultSize, cudaMemcpyDeviceToHost);
+    for(auto res : _results)
+    {
+        resultSize += res.size;
+    }
+    LOG_DEBUG(std::string("Total result size: ") + std::to_string(resultSize/1024/1024));
+    int *result = (int*) mem_check(malloc(resultSize));
+
+    for(auto res : _results)
+    {
+        LOG_DEBUG(std::string("Copying ") + std::to_string(res.size/1024/1024) + " MB to offset " + std::to_string(res.offset/1024/1024));
+        CUDA_SAFE_CALL(cudaMemcpy(result + res.offset,res.source,res.size,cudaMemcpyDeviceToHost));
+    }
+
     for(std::pair<bool,void*> item : _toFree)
     {
         if(item.first)
@@ -64,7 +78,6 @@ void Job::_internalCb()
             free(item.second);
     }
     //Once we know, write out the result file
-    //TODO: Temporary, just dump the file
     LOG_DEBUG(std::string("Writing result to ") + _outputPath);
     write_ppm(const_cast<char*>(_outputPath.c_str()),_resultXDim,_resultYDim,255,result);
     free(result);
