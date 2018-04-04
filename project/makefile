@@ -5,7 +5,7 @@ INCLUDE=-I/opt/cuda/include
 
 SOURCE=main.cpp iohandler.cpp scatter.cu JobScheduler.cpp Job.cpp Log.cpp
 EXECUTABLE=scatter
-FLAGS=
+FLAGS=-g --expt-extended-lambda
 
 #FOR DEBUGGING
 #FLAGS=-g

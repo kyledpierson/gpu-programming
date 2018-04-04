@@ -14,6 +14,7 @@ class Job
 {
     public:
         ~Job();
+        static std::string GenerateGuid();
         cudaStream_t& getStream();
         void setupJob(std::function<void (cudaStream_t&)> func,uint64_t requiredMemory,const std::string& path);
         void queue();
@@ -25,13 +26,14 @@ class Job
             rinfo.offset = offset;
             rinfo.source = res;
             rinfo.size = size;
-            _results.push_back(std::move(rinfo));
+            _results.push_back(rinfo);
         }
         uint64_t requiredMemory() const { return _requiredBytes; }
 
         static void CUDART_CB cudaCb(cudaStream_t stream, cudaError_t status, void *userData);
 
     private:
+        std::string _id;
         Job();
         void _internalCb();
 

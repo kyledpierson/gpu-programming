@@ -63,8 +63,8 @@ int main(int argc, char **argv) {
 
     // Free memory
 //    free(image);
-    free(fimage);
-//    free(result);
+//    free(fimage);
+    free(result);
     free(fresult);
     scheduler.waitUntilDone();
 }

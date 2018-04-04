@@ -7,6 +7,7 @@
 #include <cuda.h>
 #include <cuComplex.h>
 
+#include "Log.h"
 #include "scatter.h"
 
 // ============================= HELPER FUNCTIONS =============================
@@ -294,10 +295,9 @@ void scatter(JobScheduler* scheduler,float *image, float *result,
     uint64_t totalRequiredMemory = 0;
     totalRequiredMemory += (ds_bytes_1*5) + (ds_bytes_2*5) + (bytes*3);
     Job* job = scheduler->addJob();
-    auto lambda = [=] (cudaStream_t stream)
+    auto lambda = [=] __host__ (cudaStream_t stream)
     {
         job->addFree(image,false);
-        job->addFree(result,false);
         int x_active = BLOCKDIM_X-(2*HALO_SIZE);
         int y_active = BLOCKDIM_Y-(2*HALO_SIZE);
 
@@ -307,6 +307,7 @@ void scatter(JobScheduler* scheduler,float *image, float *result,
 
         // Allocate memory
         float *d_image;
+        LOG_DEBUG(std::string("Allocating ") + std::to_string(bytes) + " bytes for d_image");
         cudaMalloc((float**) &d_image, bytes);
         cudaMemcpy(d_image, image, bytes, cudaMemcpyHostToDevice);
 
@@ -352,11 +353,21 @@ void scatter(JobScheduler* scheduler,float *image, float *result,
         cudaStreamSynchronize(stream);
 
         int offset = ds_x_size_2*ds_y_size_2;
+        //LOG_DEBUG("Result " + std::to_string((uint64_t)lp_2));
         job->addResultInfo(lp_2,ds_bytes_2,0);
         job->addResultInfo(lp_4,ds_bytes_2,offset);
         job->addResultInfo(lp_6,ds_bytes_2,offset*2);
         job->addResultInfo(lp_7,ds_bytes_2,offset*3);
         job->addResultInfo(lp_8,ds_bytes_2,offset*4);
+        // Copy the result
+        /*
+        cudaMemcpy(result, lp_2, ds_bytes_2, cudaMemcpyDeviceToHost);
+        cudaMemcpy(result+offset, lp_4, ds_bytes_2, cudaMemcpyDeviceToHost);
+        cudaMemcpy(result+(offset*2), lp_6, ds_bytes_2, cudaMemcpyDeviceToHost);
+        cudaMemcpy(result+(offset*3), lp_7, ds_bytes_2, cudaMemcpyDeviceToHost);
+        cudaMemcpy(result+(offset*4), lp_8, ds_bytes_2, cudaMemcpyDeviceToHost);
+        */
+
         job->addFree(d_image,true);
         job->addFree(lp_1,true);
         job->addFree(lp_2,true);
