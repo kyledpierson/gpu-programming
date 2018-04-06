@@ -8,7 +8,7 @@
 #include "scatter.h"
 #include "JobScheduler.h"
 
-#define DEFAULT_FILENAME "mountains.ppm"
+#define DEFAULT_FILENAME "BWstop-sign.ppm"
 
 int main(int argc, char **argv) {
     // Read parameters
@@ -28,6 +28,7 @@ int main(int argc, char **argv) {
     for(int i = 0; i < x_size*y_size; i++) {
         fimage[i] = (float) image[i] / 255;
     }
+    free(image);
 
     // Account for downsampling
     int ds_x_size_1 = x_size>>1;
@@ -38,18 +39,19 @@ int main(int argc, char **argv) {
     int ds_y_size_2 = y_size>>2;
     int ds_bytes_2 = ds_x_size_2 * ds_y_size_2 * sizeof(int);
 
-    int *result = (int*) mem_check(malloc(ds_bytes_2*5));
-    float *fresult = (float*) mem_check(malloc(ds_bytes_2*5));
+    //int *result = (int*) mem_check(malloc(ds_bytes_2*5));
+    //float *fresult = (float*) mem_check(malloc(ds_bytes_2*5));
 
     // Compute the scattering transform
     JobScheduler scheduler(0);
-    scatter(&scheduler,fimage, fresult,
+    scatter(&scheduler,fimage, nullptr,
             x_size, y_size, bytes,
             ds_x_size_1, ds_y_size_1, ds_bytes_1,
             ds_x_size_2, ds_y_size_2, ds_bytes_2, false);
     // scatter_separable(fimage, fresult, x_size, y_size, bytes, ds_x_size, ds_y_size, ds_bytes);
 
     // Copy to int result
+    /*
     maxval = 0;
     for(int i = 0; i < ds_x_size_2*ds_y_size_2*5; i++) {
         result[i] = fresult[i] * 255;
@@ -57,6 +59,7 @@ int main(int argc, char **argv) {
             maxval = result[i];
         }
     }
+    */
 
     // Write the result
     //write_ppm("result.ppm", ds_x_size_2, ds_y_size_2*5, 255, result);
@@ -64,7 +67,7 @@ int main(int argc, char **argv) {
     // Free memory
 //    free(image);
 //    free(fimage);
-    free(result);
-    free(fresult);
+//    free(result);
+//    free(fresult);
     scheduler.waitUntilDone();
 }

@@ -9,6 +9,7 @@
 
 #include "Log.h"
 #include "scatter.h"
+#include "iohandler.h"
 
 // ============================= HELPER FUNCTIONS =============================
 __constant__ float d_kernel[KERNEL_SIZE];
@@ -295,7 +296,7 @@ void scatter(JobScheduler* scheduler,float *image, float *result,
     uint64_t totalRequiredMemory = 0;
     totalRequiredMemory += (ds_bytes_1*5) + (ds_bytes_2*5) + (bytes*3);
     Job* job = scheduler->addJob();
-    auto lambda = [=] __host__ (cudaStream_t stream)
+    auto lambda = [=] (cudaStream_t stream)
     {
         job->addFree(image,false);
         int x_active = BLOCKDIM_X-(2*HALO_SIZE);
@@ -341,46 +342,49 @@ void scatter(JobScheduler* scheduler,float *image, float *result,
         cudaMemset(lp_8, 0, ds_bytes_2);
 
         // ========================= SCATTERING TRANSFORM =========================
-        /*
-        float elapsed_time;
-        cudaEvent_t start,stop;
-
-        cudaEventCreate(&start);
-        cudaEventCreate(&stop);
-        cudaEventRecord(start, 0);
-        */
-
         cudaStreamSynchronize(stream);
 
-        int offset = ds_x_size_2*ds_y_size_2;
-        //LOG_DEBUG("Result " + std::to_string((uint64_t)lp_2));
-        job->addResultInfo(lp_2,ds_bytes_2,0);
-        job->addResultInfo(lp_4,ds_bytes_2,offset);
-        job->addResultInfo(lp_6,ds_bytes_2,offset*2);
-        job->addResultInfo(lp_7,ds_bytes_2,offset*3);
-        job->addResultInfo(lp_8,ds_bytes_2,offset*4);
-        // Copy the result
-        /*
-        cudaMemcpy(result, lp_2, ds_bytes_2, cudaMemcpyDeviceToHost);
-        cudaMemcpy(result+offset, lp_4, ds_bytes_2, cudaMemcpyDeviceToHost);
-        cudaMemcpy(result+(offset*2), lp_6, ds_bytes_2, cudaMemcpyDeviceToHost);
-        cudaMemcpy(result+(offset*3), lp_7, ds_bytes_2, cudaMemcpyDeviceToHost);
-        cudaMemcpy(result+(offset*4), lp_8, ds_bytes_2, cudaMemcpyDeviceToHost);
-        */
+        job->registerCleanup([=] () {
 
-        job->addFree(d_image,true);
-        job->addFree(lp_1,true);
-        job->addFree(lp_2,true);
-        job->addFree(hp_1,true);
-        job->addFree(hp_2,true);
-        job->addFree(hp_3,true);
-        job->addFree(hp_4,true);
-        job->addFree(lp_3,true);
-        job->addFree(lp_4,true);
-        job->addFree(lp_5,true);
-        job->addFree(lp_6,true);
-        job->addFree(lp_7,true);
-        job->addFree(lp_8,true);
+            int *iresult = (int*) mem_check(malloc(ds_bytes_2*5));
+            float *result = (float*) mem_check(malloc(ds_bytes_2*5));
+            int offset = ds_x_size_2*ds_y_size_2;
+            int *fresult = (int*) mem_check(malloc(ds_bytes_2*5));
+            cudaMemcpy(result, lp_2, ds_bytes_2, cudaMemcpyDeviceToHost);
+            cudaMemcpy(result+offset, lp_4, ds_bytes_2, cudaMemcpyDeviceToHost);
+            cudaMemcpy(result+(offset*2), lp_6, ds_bytes_2, cudaMemcpyDeviceToHost);
+            cudaMemcpy(result+(offset*3), lp_7, ds_bytes_2, cudaMemcpyDeviceToHost);
+            cudaMemcpy(result+(offset*4), lp_8, ds_bytes_2, cudaMemcpyDeviceToHost);
+
+            cudaFree(d_image);
+            cudaFree(lp_1);
+            cudaFree(lp_2);
+            cudaFree(hp_1);
+            cudaFree(hp_2);
+            cudaFree(hp_3);
+            cudaFree(hp_4);
+            cudaFree(lp_3);
+            cudaFree(lp_4);
+            cudaFree(lp_5);
+            cudaFree(lp_6);
+            cudaFree(lp_7);
+            cudaFree(lp_8);
+
+
+            int maxval = 0;
+            for(int i = 0; i < ds_x_size_2*ds_y_size_2*5; i++) 
+            {
+                iresult[i] = result[i] * 255;
+                if (iresult[i] > maxval) {
+                    maxval = iresult[i];
+                }
+            }
+            write_ppm("jobout.ppm", ds_x_size_2, ds_y_size_2*5, 255, iresult);
+            free(iresult);
+            free(result);
+            free(image);
+        });
+
 
         // ========================================================================
         // Layer 1 - low pass
@@ -406,30 +410,11 @@ void scatter(JobScheduler* scheduler,float *image, float *result,
         gaussian_convolution_2D<<<ds_blocks, threads,0,stream>>>(hp_3, lp_7, ds_x_size_1, ds_x_size_2);
         gaussian_convolution_2D<<<ds_blocks, threads,0,stream>>>(hp_4, lp_8, ds_x_size_1, ds_x_size_2);
 
-        //cudaDeviceSynchronize();
-        /*
-        cudaEventRecord(stop);
-        cudaEventSynchronize(stop);
-        cudaEventElapsedTime(&elapsed_time,start, stop);
-        */
-        // ========================================================================
 
-        // Copy the result
-        /*
-        cudaMemcpy(result, lp_2, ds_bytes_2, cudaMemcpyDeviceToHost);
-        cudaMemcpy(result+offset, lp_4, ds_bytes_2, cudaMemcpyDeviceToHost);
-        cudaMemcpy(result+(offset*2), lp_6, ds_bytes_2, cudaMemcpyDeviceToHost);
-        cudaMemcpy(result+(offset*3), lp_7, ds_bytes_2, cudaMemcpyDeviceToHost);
-        cudaMemcpy(result+(offset*4), lp_8, ds_bytes_2, cudaMemcpyDeviceToHost);
-        */
         cudaStreamAddCallback(stream,&Job::cudaCb,(void*)job,0);
 
-
-        // Free memory
-
-        //fprintf(stderr, "TIME: %4.4f\n", elapsed_time);
     };
-    job->setupJob(lambda,totalRequiredMemory,"output.ppm");
+    job->setupJob(lambda,totalRequiredMemory);
     job->queue();
 }
 

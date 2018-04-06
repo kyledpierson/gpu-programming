@@ -16,18 +16,11 @@ class Job
         ~Job();
         static std::string GenerateGuid();
         cudaStream_t& getStream();
-        void setupJob(std::function<void (cudaStream_t&)> func,uint64_t requiredMemory,const std::string& path);
+        void setupJob(std::function<void (cudaStream_t&)> func,uint64_t requiredMemory);
         void queue();
         void execute();
         void addFree(void*,bool);
-        void addResultInfo(void* res, uint64_t size, uint64_t offset)
-        {
-            ResultInfo rinfo;
-            rinfo.offset = offset;
-            rinfo.source = res;
-            rinfo.size = size;
-            _results.push_back(rinfo);
-        }
+        void registerCleanup(std::function<void ()> clean) { _cleanupFunc = clean; }
         uint64_t requiredMemory() const { return _requiredBytes; }
 
         static void CUDART_CB cudaCb(cudaStream_t stream, cudaError_t status, void *userData);
@@ -55,6 +48,7 @@ class Job
         std::string _outputPath;
         std::function<void (cudaStream_t&)> _executionLambda;
         std::vector<ResultInfo> _results;
+        std::function<void ()> _cleanupFunc;
         /* Speciailize the Job here a bit, we can always make this a lambda,
         but for now we always know we intend to read out a certain sized buffer
         and then write that out to the result location */
