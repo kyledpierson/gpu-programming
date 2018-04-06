@@ -8,7 +8,7 @@
 #include "scatter.h"
 #include "JobScheduler.h"
 
-#define DEFAULT_FILENAME "BWstop-sign.ppm"
+#define DEFAULT_FILENAME "mountains.ppm"
 
 int main(int argc, char **argv) {
     // Read parameters
@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
 
     // Compute the scattering transform
     JobScheduler scheduler(0);
-    scatter(&scheduler,fimage, nullptr,
+    scatter(fimage, &scheduler,
             x_size, y_size, bytes,
             ds_x_size_1, ds_y_size_1, ds_bytes_1,
             ds_x_size_2, ds_y_size_2, ds_bytes_2, false);
