@@ -282,16 +282,21 @@ void gaussian_convolution_1D(cudaStream_t stream, float* d_image, float* d_resul
     downsample<<<ds_blocks, threads,0,stream>>>(d_buffer_col, d_result, x_size, ds_x_size);
 
     //TODO: Fix this, need to export for a later free, use a callback with frees?
-    cudaFree(d_buffer_row);
-    cudaFree(d_buffer_col);
+    //cudaFree(d_buffer_row);
+    //cudaFree(d_buffer_col);
 }
 
-void scatter(float *image, JobScheduler* scheduler, char* outputFile,
+void initConsts()
+{
+    float gaussian_1D[7] = {0.000395, 0.021639, 0.229031, 0.497871, 0.229031, 0.021639, 0.000395};
+    copy_kernel_1D(gaussian_1D);
+
+}
+
+void scatter(float *image, JobScheduler* scheduler, char* outputFile, 
              int x_size, int y_size, int bytes,
              int ds_x_size_1, int ds_y_size_1, int ds_bytes_1,
              int ds_x_size_2, int ds_y_size_2, int ds_bytes_2, bool separable) {
-    float gaussian_1D[7] = {0.000395, 0.021639, 0.229031, 0.497871, 0.229031, 0.021639, 0.000395};
-    copy_kernel_1D(gaussian_1D);
 
     int x_active = BLOCKDIM_X-(2*HALO_SIZE);
     int y_active = BLOCKDIM_Y-(2*HALO_SIZE);
@@ -302,8 +307,6 @@ void scatter(float *image, JobScheduler* scheduler, char* outputFile,
     auto lambda = [=] (cudaStream_t stream) 
     {
         //printf("Executing job lambda...\n");
-        float gaussian_1D[7] = {0.000395, 0.021639, 0.229031, 0.497871, 0.229031, 0.021639, 0.000395};
-        copy_kernel_1D(gaussian_1D);
 
         int x_active = BLOCKDIM_X-(2*HALO_SIZE);
         int y_active = BLOCKDIM_Y-(2*HALO_SIZE);

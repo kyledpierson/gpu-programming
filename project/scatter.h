@@ -14,5 +14,6 @@ void scatter(float *image, JobScheduler*, char* outFile,
              int x_size, int y_size, int bytes,
              int ds_x_size_1, int ds_y_size_1, int ds_bytes_1,
              int ds_x_size_2, int ds_y_size_2, int ds_bytes_2, bool separable);
+void initConsts();
 
 #endif
