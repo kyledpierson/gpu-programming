@@ -265,7 +265,7 @@ __global__ void downsample(float *image, float *ds_image, int x_size, int ds_x_s
 // ============================================================================
 // ============================================================================
 // ============================================================================
-void gaussian_convolution_1D(cudaStream_t stream, float* d_image, float* d_result, int x_size, int y_size, int bytes, int ds_x_size, int ds_y_size, int ds_bytes) {
+void gaussian_convolution_1D(Job* job, cudaStream_t stream, float* d_image, float* d_result, int x_size, int y_size, int bytes, int ds_x_size, int ds_y_size, int ds_bytes) {
     dim3 blocks_row(x_size / (RESULT_STEPS * BLOCKDIM_X), y_size / BLOCKDIM_Y);
     dim3 blocks_col(x_size / BLOCKDIM_X, y_size / (RESULT_STEPS * BLOCKDIM_Y));
     dim3 ds_blocks = num_blocks(ds_x_size, ds_y_size, BLOCKDIM_X, BLOCKDIM_Y);
@@ -281,9 +281,9 @@ void gaussian_convolution_1D(cudaStream_t stream, float* d_image, float* d_resul
     gaussian_convolution_col<<<blocks_col, threads,0,stream>>>(d_buffer_row, d_buffer_col, x_size, y_size);
     downsample<<<ds_blocks, threads,0,stream>>>(d_buffer_col, d_result, x_size, ds_x_size);
 
-    //TODO: Fix this, need to export for a later free, use a callback with frees?
-    //cudaFree(d_buffer_row);
-    //cudaFree(d_buffer_col);
+    //Might want to re-work this
+    job->addFree(d_buffer_row,true);
+    job->addFree(d_buffer_col,true);
 }
 
 void initConsts()
@@ -358,8 +358,8 @@ void scatter(float *image, JobScheduler* scheduler, char* outputFile,
         // ========================================================================
         // Layer 1 - low pass
         if (separable) {
-            gaussian_convolution_1D(stream,d_image, lp_1, x_size, y_size, bytes, ds_x_size_1, ds_y_size_1, ds_bytes_1);
-            gaussian_convolution_1D(stream,lp_1, lp_2, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
+            gaussian_convolution_1D(job,stream,d_image, lp_1, x_size, y_size, bytes, ds_x_size_1, ds_y_size_1, ds_bytes_1);
+            gaussian_convolution_1D(job,stream,lp_1, lp_2, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
         } else {
             gaussian_convolution_2D<<<blocks, threads,0,stream>>>(d_image, lp_1, x_size, ds_x_size_1);
             gaussian_convolution_2D<<<ds_blocks, threads,0,stream>>>(lp_1, lp_2, ds_x_size_1, ds_x_size_2);
@@ -373,12 +373,12 @@ void scatter(float *image, JobScheduler* scheduler, char* outputFile,
 
         // Layer 2 - low pass
         if (separable) {
-            gaussian_convolution_1D(stream,hp_1, lp_3, x_size, y_size, bytes, ds_x_size_1, ds_y_size_1, ds_bytes_1);
-            gaussian_convolution_1D(stream,lp_3, lp_4, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
-            gaussian_convolution_1D(stream,hp_2, lp_5, x_size, y_size, bytes, ds_x_size_1, ds_y_size_1, ds_bytes_1);
-            gaussian_convolution_1D(stream,lp_5, lp_6, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
-            gaussian_convolution_1D(stream,hp_3, lp_7, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
-            gaussian_convolution_1D(stream,hp_4, lp_8, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
+            gaussian_convolution_1D(job,stream,hp_1, lp_3, x_size, y_size, bytes, ds_x_size_1, ds_y_size_1, ds_bytes_1);
+            gaussian_convolution_1D(job,stream,lp_3, lp_4, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
+            gaussian_convolution_1D(job,stream,hp_2, lp_5, x_size, y_size, bytes, ds_x_size_1, ds_y_size_1, ds_bytes_1);
+            gaussian_convolution_1D(job,stream,lp_5, lp_6, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
+            gaussian_convolution_1D(job,stream,hp_3, lp_7, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
+            gaussian_convolution_1D(job,stream,hp_4, lp_8, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
         } else {
             gaussian_convolution_2D<<<blocks, threads,0,stream>>>(hp_1, lp_3, x_size, ds_x_size_1);
             gaussian_convolution_2D<<<ds_blocks, threads,0,stream>>>(lp_3, lp_4, ds_x_size_1, ds_x_size_2);
@@ -413,6 +413,8 @@ void scatter(float *image, JobScheduler* scheduler, char* outputFile,
                 }
             }
             write_ppm(outputFile,ds_x_size_2,ds_y_size_2*5,255,iresult);
+
+            job->FreeMemory();
 
             // Free memory
             free(iresult);

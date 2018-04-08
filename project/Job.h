@@ -22,6 +22,7 @@ class Job
         void addFree(void*,bool);
         void registerCleanup(std::function<void ()> clean) { _cleanupFunc = clean; }
         uint64_t requiredMemory() const { return _requiredBytes; }
+        void FreeMemory();
 
         static void CUDART_CB cudaCb(cudaStream_t stream, cudaError_t status, void *userData);
 

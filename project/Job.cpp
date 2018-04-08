@@ -42,6 +42,17 @@ void Job::addFree(void* toFree,bool cuda)
     _toFree.insert(std::make_pair(cuda,toFree));
 }
 
+void Job::FreeMemory()
+{
+    for(auto memPair : _toFree)
+    {
+        if(memPair.first)
+            cudaFree(memPair.second);
+        else
+            free(memPair.second);
+    }
+}
+
 
 __host__
 void CUDART_CB Job::cudaCb(cudaStream_t stream, cudaError_t status, void *userData)
