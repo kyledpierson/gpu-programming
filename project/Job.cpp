@@ -55,44 +55,19 @@ void CUDART_CB Job::cudaCb(cudaStream_t stream, cudaError_t status, void *userDa
 __host__
 void Job::_internalCb()
 {
-    //Some magic thread pool is calling this callback
-    LOG_DEBUG(std::string("Calling job call back for id: ") + _id);
+    //IMPORTANT: Stream callbacks can't call CUDA calls!
+    //Need to be tricksy about this, let's go ahead and 
+    //Schedule on a thread pool for this job to be run 
+    //http://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#stream-callbacks
+    //It must do some checking to which thread is calling it.
+
+    _scheduler->queueCallback(this,_cleanupFunc);
+
     /*
-    uint64_t resultSize = 0;
-    //cudaMemcpy(result, _resultFrom, _resultSize, cudaMemcpyDeviceToHost);
-    for(auto res : _results)
-    {
-        resultSize += res.size;
-    }
-    LOG_DEBUG(std::string("Total result size: ") + std::to_string(resultSize));
-    int *result = (int*) mem_check(malloc(resultSize));
-    if(result == nullptr)
-    {
-        LOG_DEBUG("UNABLE TO MALLOC ENOUGH MEMORY");
-    }
-    */
-
-/*
-    for(auto res : _results)
-    {
-        LOG_DEBUG(std::string("Copying ") + std::to_string(res.size) + " to offset " + std::to_string(res.offset/1024/1024));
-        LOG_DEBUG("Copying from address " + std::to_string((uint64_t)res.source));
-        CUDA_SAFE_CALL(cudaMemcpy(result + res.offset,res.source,res.size,cudaMemcpyDeviceToHost));
-    }
-    */
-
-/*
-    for(std::pair<bool,void*> item : _toFree)
-    {
-        if(item.first)
-            cudaFree(item.second);
-        else
-            free(item.second);
-    }
-    */
-    //Once we know, write out the result file
+    LOG_DEBUG(std::string("Calling job call back for id: ") + _id);
     _cleanupFunc();
     _scheduler->jobDone(this);
+    */
 
 }
 

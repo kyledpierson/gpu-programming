@@ -6,6 +6,7 @@
 #include <memory>
 #include <vector>
 #include <condition_variable>
+#include "ThreadPool.h"
 
 class JobScheduler 
 {
@@ -16,6 +17,7 @@ class JobScheduler
     Job* addJob();
     void queueUpJob(Job*);
     void jobDone(Job*);
+    void queueCallback(Job* job, std::function<void ()> func);
 
     void waitUntilDone();
 
@@ -30,6 +32,7 @@ class JobScheduler
         //Probably a heap is better
         std::vector<Job*> _jobs;
         std::condition_variable _waitCv;
+        ThreadPool _threadPool;
 };
 
 

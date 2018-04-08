@@ -3,7 +3,7 @@
 CC=/opt/cuda/bin/nvcc
 INCLUDE=-I/opt/cuda/include
 
-SOURCE=main.cpp iohandler.cpp scatter.cu JobScheduler.cpp Job.cpp Log.cpp
+SOURCE=main.cpp iohandler.cpp scatter.cu JobScheduler.cpp Job.cpp Log.cpp test.cu ThreadPool.cpp
 EXECUTABLE=scatter
 FLAGS=-g --expt-extended-lambda
 

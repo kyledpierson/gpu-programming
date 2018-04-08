@@ -7,13 +7,15 @@ JobScheduler::JobScheduler(int maxJobs)
     : _maxJobs(maxJobs)
     , _currentlyRunningJobs(0)
     , _currentMemoryUsage(0)
+    , _threadPool(5)
 {
 
 }
 
 JobScheduler::~JobScheduler()
 {
-
+    LOG_DEBUG("Finishing up thread pool jobs in scheduler...")
+    _threadPool.finishAllJobs();
 }
 
 Job* JobScheduler::addJob()
@@ -69,9 +71,9 @@ void JobScheduler::waitUntilDone()
     LOG_DEBUG("Falling out of the wait, no more jobs to process");
 
 }
-//TODO: Convert this to use unique Guids as job ids, not the pointer
 void JobScheduler::jobDone(Job* job)
 {
+    //TODO: Probably want to mutex this
     _currentlyRunningJobs--;
     _currentMemoryUsage -= job->requiredMemory();
     _checkIfCanRunJob();
@@ -90,4 +92,16 @@ size_t JobScheduler::memoryAvailable() const
 uint64_t JobScheduler::highWaterMark() const
 {
     return (uint64_t)(.85 * memoryAvailable());
+}
+
+void JobScheduler::queueCallback(Job* job, std::function<void ()> func)
+{
+    LOG_DEBUG("Scheduling callback on our own thread pool...");
+    _threadPool.queueJob(
+    [=] () {
+        func();
+        jobDone(job);
+    }
+
+    );
 }
