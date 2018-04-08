@@ -11,20 +11,11 @@
 
 #define DEFAULT_FILENAME "mountains.ppm"
 
-int main(int argc, char **argv) {
-    // VARIABLES
+void scheduleForTransformation(JobScheduler* scheduler, char* inputFile, char* outputFile)
+{
     bool separable = false;
-
-    // Read parameters
-    char *filename = strdup(DEFAULT_FILENAME);
-    if (argc > 1) {
-        filename = strdup(argv[1]);
-        fprintf(stderr, "Using %s\n", filename);
-    }
-
-    // Read image
     int x_size, y_size, maxval;
-    unsigned int *image = read_ppm(filename, x_size, y_size, maxval);
+    unsigned int *image = read_ppm(inputFile, x_size, y_size, maxval);
     int bytes = x_size * y_size * sizeof(int);
     float *fimage = (float*) mem_check(malloc(bytes));
 
@@ -43,35 +34,30 @@ int main(int argc, char **argv) {
     int ds_y_size_2 = y_size>>2;
     int ds_bytes_2 = ds_x_size_2 * ds_y_size_2 * sizeof(int);
 
-    //int *result = (int*) mem_check(malloc(ds_bytes_2*5));
-    //float *fresult = (float*) mem_check(malloc(ds_bytes_2*5));
-
-    // Compute the scattering transform
-    JobScheduler scheduler(0);
-//    test_schedule(&scheduler);
-    scatter(fimage, &scheduler,"result.ppm",
+    scatter(fimage, scheduler,outputFile,
             x_size, y_size, bytes,
             ds_x_size_1, ds_y_size_1, ds_bytes_1,
             ds_x_size_2, ds_y_size_2, ds_bytes_2, separable);
 
-    // Copy to int result
-    /*
-    maxval = 0;
-    for(int i = 0; i < ds_x_size_2*ds_y_size_2*5; i++) {
-        result[i] = fresult[i] * 255;
-        if (result[i] > maxval) {
-            maxval = result[i];
-        }
+}
+
+int main(int argc, char **argv) {
+    // VARIABLES
+
+    // Read parameters
+    char *filename = strdup(DEFAULT_FILENAME);
+    if (argc > 1) {
+        filename = strdup(argv[1]);
+        fprintf(stderr, "Using %s\n", filename);
     }
-    */
 
-    // Write the result
-    //write_ppm("result.ppm", ds_x_size_2, ds_y_size_2*5, 255, result);
+    // Compute the scattering transform
+    JobScheduler scheduler(0);
+    scheduleForTransformation(&scheduler,filename,"result.ppm");
+    scheduleForTransformation(&scheduler,filename,"result.ppm2");
+    scheduleForTransformation(&scheduler,filename,"result.ppm3");
+    scheduleForTransformation(&scheduler,filename,"result.ppm4");
+    scheduleForTransformation(&scheduler,filename,"result.ppm5");
 
-    // Free memory
-//    free(image);
-//    free(fimage);
-//    free(result);
-//    free(fresult);
     scheduler.waitUntilDone();
 }

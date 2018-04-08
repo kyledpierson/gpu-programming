@@ -412,6 +412,8 @@ void scatter(float *image, JobScheduler* scheduler, char* outputFile,
             write_ppm(outputFile,ds_x_size_2,ds_y_size_2*5,maxval,iresult);
 
             // Free memory
+            free(iresult);
+            free(result);
             cudaFree(d_image);
             cudaFree(lp_1);
             cudaFree(lp_2);
