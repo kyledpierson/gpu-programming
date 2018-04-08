@@ -412,7 +412,7 @@ void scatter(float *image, JobScheduler* scheduler, char* outputFile,
                     maxval = iresult[i];
                 }
             }
-            write_ppm(outputFile,ds_x_size_2,ds_y_size_2*5,maxval,iresult);
+            write_ppm(outputFile,ds_x_size_2,ds_y_size_2*5,255,iresult);
 
             // Free memory
             free(iresult);

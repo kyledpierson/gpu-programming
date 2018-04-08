@@ -43,8 +43,7 @@ void scheduleForTransformation(JobScheduler* scheduler, char* inputFile, char* o
 
 int main(int argc, char **argv) {
     // VARIABLES
-
-    // Read parameters
+// Read parameters
     char *filename = strdup(DEFAULT_FILENAME);
     if (argc > 1) {
         filename = strdup(argv[1]);
@@ -53,14 +52,14 @@ int main(int argc, char **argv) {
 
     // Compute the scattering transform
     JobScheduler scheduler(0);
-    //Pre-process for all 
+    //Pre-process for all
 
     initConsts();
     scheduleForTransformation(&scheduler,filename,"result.ppm");
-//    scheduleForTransformation(&scheduler,filename,"result.ppm2");
-//    scheduleForTransformation(&scheduler,filename,"result.ppm3");
-//    scheduleForTransformation(&scheduler,filename,"result.ppm4");
-//    scheduleForTransformation(&scheduler,filename,"result.ppm5");
+    scheduleForTransformation(&scheduler,filename,"result.ppm2");
+    scheduleForTransformation(&scheduler,filename,"result.ppm3");
+    scheduleForTransformation(&scheduler,filename,"result.ppm4");
+    scheduleForTransformation(&scheduler,filename,"result.ppm5");
 
     scheduler.waitUntilDone();
 }

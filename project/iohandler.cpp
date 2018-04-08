@@ -93,6 +93,8 @@ unsigned int *read_ppm(char *filename, int & xsize, int & ysize, int & maxval) {
 void write_ppm(char *filename, int xsize, int ysize, int maxval, int *pic) {
     FILE *fp;
 
+    fprintf(stderr,"Writing file of xsize: %d and y size: %d, maxval %d\n",xsize,ysize,maxval);
+
     fp = fopen(filename, "w");
     if (!fp) {
         fprintf(stderr, "FAILED TO OPEN FILE '%s' for writing\n");
