@@ -84,6 +84,7 @@ unsigned int *read_ppm(char *filename, int & xsize, int & ysize, int & maxval) {
     close(fd);
 
     int pixels = xsize * ysize;
+    /* Does this need to have a full integer for a single channel? Shouldn't 1 byte suffice?*/
     for (int i=0; i<pixels; i++) pic[i] = (int) buf[3*i];  // red channel
 
     return pic; // success
