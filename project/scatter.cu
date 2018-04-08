@@ -9,6 +9,7 @@
 
 #include "scatter.h"
 #include "iohandler.h"
+#include "Log.h"
 
 // ============================= HELPER FUNCTIONS =============================
 __constant__ float d_kernel[KERNEL_SIZE];
@@ -384,7 +385,7 @@ void scatter(float *image, JobScheduler* scheduler,
         // Copy the result
 
         job->registerCleanup([=] () { 
-            printf("Executing cleanup\n");
+            //printf("Executing cleanup\n");
             int *iresult = (int*) mem_check(malloc(ds_bytes_2*5));
             float *result = (float*) mem_check(malloc(ds_bytes_2*5));
             int offset = ds_x_size_2*ds_y_size_2;
@@ -397,6 +398,7 @@ void scatter(float *image, JobScheduler* scheduler,
             int maxval = 0;
             for(int i = 0; i < ds_x_size_2*ds_y_size_2*5; i++) 
             {
+                //printf("%f\n",result[i]);
                 iresult[i] = result[i] * 255;
                 if (iresult[i] > maxval) {
                     maxval = iresult[i];
@@ -418,6 +420,7 @@ void scatter(float *image, JobScheduler* scheduler,
             cudaFree(lp_6);
             cudaFree(lp_7);
             cudaFree(lp_8);
+            LOG_DEBUG("Cleanup complete");
         });
         cudaStreamAddCallback(stream,&Job::cudaCb,(void*)job,0);
 

@@ -61,6 +61,8 @@ void Job::_internalCb()
     //http://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#stream-callbacks
     //It must do some checking to which thread is calling it.
 
+    //At this point, could technically move this all into cudaCb,
+    //possibly do that in the future
     _scheduler->queueCallback(this,_cleanupFunc);
 
     /*
