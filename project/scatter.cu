@@ -416,6 +416,7 @@ void scatter(float *image, JobScheduler* scheduler, char* outputFile,
 
             // Free memory
             free(iresult);
+            free(image);
             free(result);
             cudaFree(d_image);
             cudaFree(lp_1);
