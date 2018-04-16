@@ -9,7 +9,7 @@
 #define RESULT_STEPS 8
 #define HALO_STEPS   1
 
-void scatter(float *image, float *result,
+void scatter(float *image, float *result_1, float *result_2, float *result_3, float *result_4, float *result_5,
              int x_size, int y_size, int bytes,
              int ds_x_size_1, int ds_y_size_1, int ds_bytes_1,
              int ds_x_size_2, int ds_y_size_2, int ds_bytes_2, bool separable);

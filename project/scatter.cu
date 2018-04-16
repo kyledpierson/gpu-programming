@@ -17,12 +17,6 @@ void copy_kernel_1D(float h_kernel[KERNEL_SIZE]) {
 
 dim3 num_blocks(int x_size, int y_size, int x_threads, int y_threads) {
     // Compute the number of blocks needed for entire image
-    if (x_size % x_threads) {
-        x_size = x_size/x_threads*x_threads + x_threads;
-    }
-    if (y_size % y_threads) {
-        y_size = y_size/y_threads*y_threads + y_threads;
-    }
     int x_blocks = x_size / x_threads;
     int y_blocks = y_size / y_threads;
 
@@ -58,13 +52,13 @@ __device__ float convolution_pixel_2D(float tile[BLOCKDIM_Y][BLOCKDIM_X+1], floa
 // ============================= KERNEL FUNCTIONS =============================
 __global__ void gaussian_convolution_2D(float *image, float *result, int x_size, int ds_x_size) {
     float gaussian_2D[7][7] = {
-        {0.00000019, 0.00009657, 0.00010063, 0.00021979, 0.00010063, 0.00009657, 0.00000019},
-        {0.00000966, 0.00048006, 0.00500236, 0.01092616, 0.00500236, 0.00048006, 0.00000966},
-        {0.00010063, 0.00500236, 0.05212579, 0.11385319, 0.05212579, 0.00500236, 0.00010063},
-        {0.00021979, 0.01092616, 0.11385319, 0.24867822, 0.11385319, 0.01092616, 0.00021979},
-        {0.00010063, 0.00500236, 0.05212579, 0.11385319, 0.05212579, 0.00500236, 0.00010063},
-        {0.00000966, 0.00048006, 0.00500236, 0.01092616, 0.00500236, 0.00048006, 0.00000966},
-        {0.00000019, 0.00009657, 0.00010063, 0.00021979, 0.00010063, 0.00009657, 0.00000019},
+        {0.004922330, 0.009196123, 0.013380281, 0.015161844, 0.013380281, 0.009196123, 0.004922330},
+        {0.009196123, 0.017180620, 0.024997653, 0.028326053, 0.024997653, 0.017180620, 0.009196123},
+        {0.013380281, 0.024997653, 0.036371373, 0.041214164, 0.036371373, 0.024997653, 0.013380281},
+        {0.015161844, 0.028326053, 0.041214164, 0.046701763, 0.041214164, 0.028326053, 0.015161844},
+        {0.013380281, 0.024997653, 0.036371373, 0.041214164, 0.036371373, 0.024997653, 0.013380281},
+        {0.009196123, 0.017180620, 0.024997653, 0.028326053, 0.024997653, 0.017180620, 0.009196123},
+        {0.004922330, 0.009196123, 0.013380281, 0.015161844, 0.013380281, 0.009196123, 0.004922330},
     };
 
     // Shared memory tile for image data
@@ -81,32 +75,39 @@ __global__ void gaussian_convolution_2D(float *image, float *result, int x_size,
 
     // Each interior thread computes output
     if (x>=HALO_SIZE && x<blockDim.x-HALO_SIZE && y>=HALO_SIZE && y<blockDim.y-HALO_SIZE) {
-        result[(y_offset/2)*ds_x_size + (x_offset/2)] = 2*convolution_pixel_2D(tile, gaussian_2D, x, y);
+        result[(y_offset/2)*ds_x_size + (x_offset/2)] = convolution_pixel_2D(tile, gaussian_2D, x, y);
     }
 }
 
 __global__ void morlet_1_convolution_2D(float *image, float *result, int x_size) {
-    cuFloatComplex a = make_cuFloatComplex( 0,           0         );
-    cuFloatComplex b = make_cuFloatComplex(-0.00000003,  0.00000016);
-    cuFloatComplex c = make_cuFloatComplex(-0.00000150, -0.00000120);
-    cuFloatComplex d = make_cuFloatComplex( 0.00000305,  0         );
-    cuFloatComplex e = make_cuFloatComplex( 0.00002050, -0.00002731);
-    cuFloatComplex f = make_cuFloatComplex(-0.00033877,  0.00192026);
-    cuFloatComplex g = make_cuFloatComplex(-0.01767897, -0.01414889);
-    cuFloatComplex h = make_cuFloatComplex( 0.03599448,  0         );
-    cuFloatComplex i = make_cuFloatComplex( 0.00046656, -0.00062166);
-    cuFloatComplex j = make_cuFloatComplex(-0.00771040,  0.04370487);
-    cuFloatComplex k = make_cuFloatComplex(-0.40237140, -0.32202720);
-    cuFloatComplex l = make_cuFloatComplex( 0.81923060,  0         );
+    cuFloatComplex a = make_cuFloatComplex( 0.0003797, -0.0004059);
+    cuFloatComplex b = make_cuFloatComplex(-0.0000489,  0.0010724);
+    cuFloatComplex c = make_cuFloatComplex(-0.0011745, -0.0011033);
+    cuFloatComplex d = make_cuFloatComplex( 0.0016874,  0        );
+
+    cuFloatComplex e = make_cuFloatComplex( 0.0046257, -0.0049446);
+    cuFloatComplex f = make_cuFloatComplex(-0.0005960,  0.0130642);
+    cuFloatComplex g = make_cuFloatComplex(-0.0143081, -0.0134409);
+    cuFloatComplex h = make_cuFloatComplex( 0.0205567,  0        );
+
+    cuFloatComplex i = make_cuFloatComplex( 0.0207307, -0.0221604);
+    cuFloatComplex j = make_cuFloatComplex(-0.0026709,  0.0585498);
+    cuFloatComplex k = make_cuFloatComplex(-0.0641242, -0.0602381);
+    cuFloatComplex l = make_cuFloatComplex( 0.0921288,  0        );
+
+    cuFloatComplex m = make_cuFloatComplex( 0.0341792, -0.0365362);
+    cuFloatComplex n = make_cuFloatComplex(-0.0044036,  0.0965324);
+    cuFloatComplex o = make_cuFloatComplex(-0.1057229, -0.0993158);
+    cuFloatComplex p = make_cuFloatComplex( 0.1518947,  0        );
 
     cuFloatComplex morlet_2D_1[7][7] = {
-        {a, a, a, a, a, a, a},
         {a, b, c, d, c, b, a},
         {e, f, g, h, g, f, e},
         {i, j, k, l, k, j, i},
+        {m, n, o, p, o, n, m},
+        {i, j, k, l, k, j, i},
         {e, f, g, h, g, f, e},
-        {a, b, c, d, c, b, a},
-        {a, a, a, a, a, a, a}
+        {a, b, c, d, c, b, a}
     };
 
     // Shared memory tile for image data
@@ -127,27 +128,34 @@ __global__ void morlet_1_convolution_2D(float *image, float *result, int x_size)
 }
 
 __global__ void morlet_2_convolution_2D(float *image, float *result, int x_size) {
-    cuFloatComplex a = make_cuFloatComplex( 0,           0         );
-    cuFloatComplex b = make_cuFloatComplex(-0.00000003,  0.00000016);
-    cuFloatComplex c = make_cuFloatComplex(-0.00000150, -0.00000120);
-    cuFloatComplex d = make_cuFloatComplex( 0.00000305,  0         );
-    cuFloatComplex e = make_cuFloatComplex( 0.00002050, -0.00002731);
-    cuFloatComplex f = make_cuFloatComplex(-0.00033877,  0.00192026);
-    cuFloatComplex g = make_cuFloatComplex(-0.01767897, -0.01414889);
-    cuFloatComplex h = make_cuFloatComplex( 0.03599448,  0         );
-    cuFloatComplex i = make_cuFloatComplex( 0.00046656, -0.00062166);
-    cuFloatComplex j = make_cuFloatComplex(-0.00771040,  0.04370487);
-    cuFloatComplex k = make_cuFloatComplex(-0.40237140, -0.32202720);
-    cuFloatComplex l = make_cuFloatComplex( 0.81923060,  0         );
+    cuFloatComplex a = make_cuFloatComplex( 0.0003797, -0.0004059);
+    cuFloatComplex b = make_cuFloatComplex(-0.0000489,  0.0010724);
+    cuFloatComplex c = make_cuFloatComplex(-0.0011745, -0.0011033);
+    cuFloatComplex d = make_cuFloatComplex( 0.0016874,  0        );
+
+    cuFloatComplex e = make_cuFloatComplex( 0.0046257, -0.0049446);
+    cuFloatComplex f = make_cuFloatComplex(-0.0005960,  0.0130642);
+    cuFloatComplex g = make_cuFloatComplex(-0.0143081, -0.0134409);
+    cuFloatComplex h = make_cuFloatComplex( 0.0205567,  0        );
+
+    cuFloatComplex i = make_cuFloatComplex( 0.0207307, -0.0221604);
+    cuFloatComplex j = make_cuFloatComplex(-0.0026709,  0.0585498);
+    cuFloatComplex k = make_cuFloatComplex(-0.0641242, -0.0602381);
+    cuFloatComplex l = make_cuFloatComplex( 0.0921288,  0        );
+
+    cuFloatComplex m = make_cuFloatComplex( 0.0341792, -0.0365362);
+    cuFloatComplex n = make_cuFloatComplex(-0.0044036,  0.0965324);
+    cuFloatComplex o = make_cuFloatComplex(-0.1057229, -0.0993158);
+    cuFloatComplex p = make_cuFloatComplex( 0.1518947,  0        );
 
     cuFloatComplex morlet_2D_2[7][7] = {
-        {a, a, e, i, e, a, a},
-        {a, b, f, j, f, b, a},
-        {a, c, g, k, g, c, a},
-        {a, d, h, l, h, d, a},
-        {a, c, g, k, g, c, a},
-        {a, b, f, j, f, b, a},
-        {a, a, e, i, e, a, a}
+        {a, e, i, m, i, e, a},
+        {b, f, j, n, j, f, b},
+        {c, g, k, o, k, g, c},
+        {d, h, l, p, l, h, d},
+        {c, g, k, o, k, g, c},
+        {b, f, j, n, j, f, b},
+        {a, e, i, m, i, e, a}
     };
 
     // Shared memory tile for image data
@@ -283,11 +291,11 @@ void gaussian_convolution_1D(float* d_image, float* d_result, int x_size, int y_
     cudaFree(d_buffer_col);
 }
 
-void scatter(float *image, float *result,
+void scatter(float *image, float *result_1, float *result_2, float *result_3, float *result_4, float *result_5,
              int x_size, int y_size, int bytes,
              int ds_x_size_1, int ds_y_size_1, int ds_bytes_1,
              int ds_x_size_2, int ds_y_size_2, int ds_bytes_2, bool separable) {
-    float gaussian_1D[7] = {0.000395, 0.021639, 0.229031, 0.497871, 0.229031, 0.021639, 0.000395};
+    float gaussian_1D[7] = {0.071303, 0.131514, 0.189879, 0.214607, 0.189879, 0.131514, 0.071303};
     copy_kernel_1D(gaussian_1D);
 
     int x_active = BLOCKDIM_X-(2*HALO_SIZE);
@@ -381,14 +389,12 @@ void scatter(float *image, float *result,
     cudaEventSynchronize(stop);
     cudaEventElapsedTime(&elapsed_time,start, stop);
     // ========================================================================
-
     // Copy the result
-    int offset = ds_x_size_2*ds_y_size_2;
-    cudaMemcpy(result, lp_2, ds_bytes_2, cudaMemcpyDeviceToHost);
-    cudaMemcpy(result+offset, lp_4, ds_bytes_2, cudaMemcpyDeviceToHost);
-    cudaMemcpy(result+(offset*2), lp_6, ds_bytes_2, cudaMemcpyDeviceToHost);
-    cudaMemcpy(result+(offset*3), lp_7, ds_bytes_2, cudaMemcpyDeviceToHost);
-    cudaMemcpy(result+(offset*4), lp_8, ds_bytes_2, cudaMemcpyDeviceToHost);
+    cudaMemcpy(result_1, lp_2, ds_bytes_2, cudaMemcpyDeviceToHost);
+    cudaMemcpy(result_2, lp_4, ds_bytes_2, cudaMemcpyDeviceToHost);
+    cudaMemcpy(result_3, lp_6, ds_bytes_2, cudaMemcpyDeviceToHost);
+    cudaMemcpy(result_4, lp_7, ds_bytes_2, cudaMemcpyDeviceToHost);
+    cudaMemcpy(result_5, lp_8, ds_bytes_2, cudaMemcpyDeviceToHost);
 
     // Free memory
     cudaFree(d_image);
