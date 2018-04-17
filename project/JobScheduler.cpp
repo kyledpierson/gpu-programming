@@ -50,12 +50,12 @@ void JobScheduler::_checkIfCanRunJob()
         if((*it)->requiredMemory() + _currentMemoryUsage < highWaterMark())
         {
             //found a job that will work
+            LOG_DEBUG(std::string("Found new job I can run that will require ") + std::to_string((*it)->requiredMemory() / 1024 / 1024) + " MB I have " + std::to_string(highWaterMark() / 1024/1024) + " MB avail");;
             (*it)->execute();
             _currentMemoryUsage += (*it)->requiredMemory();
             _currentlyRunningJobs++;
-            LOG_DEBUG(std::string("Found new job I can run that will require ") + std::to_string((*it)->requiredMemory() / 1024 / 1024) + " MB I have " + std::to_string(highWaterMark() / 1024/1024) + " MB avail");;
             if(it != _jobs.end())
-            it = _jobs.erase(it);
+                it = _jobs.erase(it);
         }
         else
         {
@@ -78,8 +78,13 @@ void JobScheduler::jobDone(Job* job)
     //TODO: Probably want to mutex this
     _currentlyRunningJobs--;
     _currentMemoryUsage -= job->requiredMemory();
+    auto totalTime = job->totalMs();
+    LOG_DEBUG(std::string("Job took " ) + std::to_string(totalTime) + " MS");
+    LOG_DEBUG(std::string("KBytes/MS for this job: ") + std::to_string(job->bytesPerMs()/(1024)));
+
     _checkIfCanRunJob();
     _waitCv.notify_all();
+    delete job;
 
 }
 size_t JobScheduler::memoryAvailable() const
@@ -99,11 +104,5 @@ uint64_t JobScheduler::highWaterMark() const
 void JobScheduler::queueCallback(Job* job, std::function<void ()> func)
 {
     LOG_DEBUG("Scheduling callback on our own thread pool...");
-    _threadPool.queueJob(
-    [=] () {
-        func();
-        jobDone(job);
-    }
-
-    );
+    _threadPool.queueJob(func);
 }

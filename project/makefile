@@ -4,14 +4,15 @@ INCLUDE=-I/usr/local/cuda/include
 #INCLUDE=-I/opt/cuda/include
 
 SOURCE=main.cpp iohandler.cpp scatter.cu JobScheduler.cpp Job.cpp Log.cpp test.cu ThreadPool.cpp
+HEADERS=iohandler.h Job.h JobScheduler.h Log.h ThreadPool.h
 EXECUTABLE=scatter
 FLAGS=-g --expt-extended-lambda
 
 #FOR DEBUGGING
 #FLAGS=-g
 
-$(EXECUTABLE): $(SOURCE)
-	$(CC) $(FLAGS) $(INCLUDE) $^ -o $@
+$(EXECUTABLE): $(SOURCE) $(HEADERS)
+	$(CC) $(FLAGS) $(INCLUDE) $(SOURCE) -o $@
 
 clean:
 	rm -f analysis.nvvp core* result*.ppm scatter scatter.out scatter.err

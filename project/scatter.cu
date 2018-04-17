@@ -435,7 +435,7 @@ void scatter(float *image, JobScheduler* scheduler, char* outputFile,
         cudaStreamAddCallback(stream,&Job::cudaCb,(void*)job,0);
     };
 
-    job->setupJob(lambda,totalRequiredMemory);
+    job->setupJob(lambda,totalRequiredMemory,bytes);
     job->queue();
 }
 
