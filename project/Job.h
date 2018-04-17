@@ -38,17 +38,12 @@ class Job
             uint64_t size;
         };
 
+
         cudaStream_t _stream;
         std::set<std::pair<bool,void*> > _toFree;
-        uint64_t _resultSize;
         uint64_t _requiredBytes;
-        uint64_t _resultXDim;
-        uint64_t _resultYDim;
-        void*    _resultFrom;
         JobScheduler* _scheduler;
-        std::string _outputPath;
         std::function<void (cudaStream_t&)> _executionLambda;
-        std::vector<ResultInfo> _results;
         std::function<void ()> _cleanupFunc;
         /* Speciailize the Job here a bit, we can always make this a lambda,
         but for now we always know we intend to read out a certain sized buffer
