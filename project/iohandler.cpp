@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "iohandler.h"
 
@@ -97,7 +98,7 @@ void write_ppm(char *filename, int xsize, int ysize, int maxval, int *pic) {
 
     fp = fopen(filename, "w");
     if (!fp) {
-        fprintf(stderr, "FAILED TO OPEN FILE '%s' for writing\n");
+        fprintf(stderr, "FAILED TO OPEN FILE '%s' for writing %d\n",filename,errno);
         exit(-1);
     }
 

@@ -300,7 +300,7 @@ void initConsts() {
 
 }
 
-void scatter(float *image, JobScheduler* scheduler, char* outputFile,
+void scatter(float *image, JobScheduler* scheduler, const std::string& outputFile,
              int x_size, int y_size, int bytes,
              int ds_x_size_1, int ds_y_size_1, int ds_bytes_1,
              int ds_x_size_2, int ds_y_size_2, int ds_bytes_2, bool separable) {
@@ -409,7 +409,8 @@ void scatter(float *image, JobScheduler* scheduler, char* outputFile,
                 //printf("%f\n",result[i]);
                 iresult[i] = result[i] * 255;
             }
-            write_ppm(outputFile, ds_x_size_2, ds_y_size_2*5, 255, iresult);
+            LOG_DEBUG(std::string("Writing to output file: ") + outputFile);
+            write_ppm((char*)outputFile.c_str(), ds_x_size_2, ds_y_size_2*5, 255, iresult);
 
             job->FreeMemory();
 

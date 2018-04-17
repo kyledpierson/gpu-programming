@@ -7,15 +7,16 @@
 #include "iohandler.h"
 #include "scatter.h"
 #include "JobScheduler.h"
+#include "FileCrawler.h"
 #include "test.h"
 
 #define DEFAULT_FILENAME "uiuc_sample.ppm"
 
-void scheduleForTransformation(JobScheduler* scheduler, char* inputFile, char* outputFile)
+void scheduleForTransformation(JobScheduler* scheduler, const char* inputFile, const std::string& outputFile)
 {
     bool separable = false;
     int x_size, y_size, maxval;
-    unsigned int *image = read_ppm(inputFile, x_size, y_size, maxval);
+    unsigned int *image = read_ppm((char*)inputFile, x_size, y_size, maxval);
     int bytes = x_size * y_size * sizeof(int);
     float *fimage = (float*) mem_check(malloc(bytes));
 
@@ -35,7 +36,7 @@ void scheduleForTransformation(JobScheduler* scheduler, char* inputFile, char* o
     int ds_bytes_2 = ds_x_size_2 * ds_y_size_2 * sizeof(int);
 
     // Compute the scattering transform
-    scatter(fimage, scheduler,outputFile,
+    scatter(fimage, scheduler, outputFile,
             x_size, y_size, bytes,
             ds_x_size_1, ds_y_size_1, ds_bytes_1,
             ds_x_size_2, ds_y_size_2, ds_bytes_2, separable);
@@ -53,12 +54,26 @@ int main(int argc, char **argv) {
     JobScheduler scheduler(0);
 
     //Pre-process for all
+    FileCrawler crawler("source",".ppm");
+    crawler.crawl();
     initConsts();
+    for(auto file : crawler.getAllPaths())
+    {
+    //    LOG_DEBUG(file.path());
+
+        //hack for new destination
+        std::string out = std::string("output/") + file.fileName() + ".out";
+        LOG_DEBUG(file.path() + " -> " + out);
+        if(out.size() > 0 && file.path().size() > 0)
+            scheduleForTransformation(&scheduler,file.path().c_str(),out);
+    }
+    /*
     scheduleForTransformation(&scheduler, filename, "result.ppm");
     scheduleForTransformation(&scheduler, filename, "result.ppm2");
     scheduleForTransformation(&scheduler, filename, "result.ppm3");
     scheduleForTransformation(&scheduler, filename, "result.ppm4");
     scheduleForTransformation(&scheduler, filename, "result.ppm5");
+    */
 
     scheduler.waitUntilDone();
 }
