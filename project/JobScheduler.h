@@ -33,6 +33,7 @@ class JobScheduler
         std::vector<Job*> _jobs;
         std::condition_variable _waitCv;
         ThreadPool _threadPool;
+        std::mutex _jobLock;
 };
 
 

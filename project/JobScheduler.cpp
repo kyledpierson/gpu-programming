@@ -33,6 +33,7 @@ void JobScheduler::queueUpJob(Job* job)
 
 void JobScheduler::_checkIfCanRunJob()
 {
+    std::unique_lock<std::mutex> lock(_jobLock);
     /* This function will look through all of the current jobs and determine if
     any of them will fit onto the GPU (based on memory high water mark).
     */
@@ -53,6 +54,7 @@ void JobScheduler::_checkIfCanRunJob()
             _currentMemoryUsage += (*it)->requiredMemory();
             _currentlyRunningJobs++;
             LOG_DEBUG(std::string("Found new job I can run that will require ") + std::to_string((*it)->requiredMemory() / 1024 / 1024) + " MB I have " + std::to_string(highWaterMark() / 1024/1024) + " MB avail");;
+            if(it != _jobs.end())
             it = _jobs.erase(it);
         }
         else
