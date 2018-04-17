@@ -8,6 +8,9 @@ JobScheduler::JobScheduler(int maxJobs)
     , _currentlyRunningJobs(0)
     , _currentMemoryUsage(0)
     , _threadPool(5)
+    , _totalUsedMs(0)
+    , _totalBytesDone(0)
+    , _totalFilesProcessed(0)
 {
 
 }
@@ -71,6 +74,12 @@ void JobScheduler::waitUntilDone()
     while(_currentlyRunningJobs > 0 || _jobs.size() > 0)
         _waitCv.wait(lk);
     LOG_DEBUG("Falling out of the wait, no more jobs to process");
+    LOG_DEBUG("----------------------")
+    LOG_DEBUG("-- FINISH --");
+    LOG_DEBUG("----------------------")
+    LOG_DEBUG("Completed " + std::to_string(_totalFilesProcessed) + " files");
+    LOG_DEBUG("Total Bytes Processed: " + std::to_string(_totalBytesDone/1024/1024) + " MB");
+    LOG_DEBUG(std::string("KB/S: ") + std::to_string((_totalBytesDone /1024) / (_totalUsedMs / 1000)))
 
 }
 void JobScheduler::jobDone(Job* job)
@@ -81,10 +90,13 @@ void JobScheduler::jobDone(Job* job)
     auto totalTime = job->totalMs();
     LOG_DEBUG(std::string("Job took " ) + std::to_string(totalTime) + " MS");
     LOG_DEBUG(std::string("KBytes/MS for this job: ") + std::to_string(job->bytesPerMs()/(1024)));
+    _totalUsedMs += totalTime;
+    _totalBytesDone += job->bytesProcessed();
+    _totalFilesProcessed++;
+    delete job;
 
     _checkIfCanRunJob();
     _waitCv.notify_all();
-    delete job;
 
 }
 size_t JobScheduler::memoryAvailable() const

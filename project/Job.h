@@ -95,6 +95,7 @@ class Job
         std::vector<TimePeriod> _timePeriods;
         int64_t totalMs() const;
         int64_t bytesPerMs() const;
+        int64_t bytesProcessed() const { return _inputSize; }
 
 
     friend class JobScheduler;

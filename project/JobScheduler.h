@@ -34,6 +34,9 @@ class JobScheduler
         std::condition_variable _waitCv;
         ThreadPool _threadPool;
         std::mutex _jobLock;
+        uint64_t _totalUsedMs;
+        uint64_t _totalBytesDone;
+        uint64_t _totalFilesProcessed;
 };
 
 
