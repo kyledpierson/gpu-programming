@@ -1,2 +1,4 @@
 scatter
 result.ppm*
+output/*out
+source/T*
