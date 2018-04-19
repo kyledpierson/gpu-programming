@@ -7,8 +7,17 @@
 
 Job::Job()
     : _id(Job::GenerateGuid())
+    , _running(false)
+    , _done(false)
+    , _lastBytes(0)
+    , _bytesProcessed(0)
 {
     cudaStreamCreate(&_stream);
+}
+
+void Job::setDone()
+{
+    _done = true;
 }
 
 Job::~Job()
@@ -19,20 +28,55 @@ cudaStream_t& Job::getStream()
 {
     return _stream;
 }
-
-void Job::execute()
+bool Job::isReady() const
 {
-    LOG_DEBUG(std::string("Executing Job with ID: ") + _id);
-    startTimer();
-    _executionLambda(_stream);
+    if(!_running && _stages.size() > 0)
+    {
+        return true;
+    }
+    return false;
 }
 
-void Job::setupJob(std::function<void (cudaStream_t&)> func,uint64_t requiredMemory,uint64_t inputSize)
+void Job::execute() //exeecutes a stage
 {
-    _executionLambda = func;
-    //LOG_DEBUG(std::string("Setting up function to require ") + std::to_string(requiredMemory) + " bytes of memory and output to " + path);
-    _requiredBytes = requiredMemory;
-    _inputSize = inputSize;
+    LOG_DEBUG(std::string("Executing Job Stage with ID: ") + _id);
+    //TODO: Lambda?
+    std::unique_lock<std::mutex> lock(_stageMutex);
+    if(_stages.size() > 0)
+    {
+        startTimer();
+        _running = true;
+        Stage& stage = _stages.front();
+        stage.lambda(_stream);
+        _lastBytes = stage.requiredBytes;
+        _stages.pop_front();
+        _running = false;
+    }
+}
+uint64_t Job::requiredMemory() const
+{
+    std::unique_lock<std::mutex> slock(_stageMutex);
+    if(_stages.size() > 0)
+    {
+        return _stages.front().requiredBytes;
+    }
+    return 0;
+}
+
+void Job::addStage(std::function<void (cudaStream_t&)> func,uint64_t requiredMemory,uint64_t inputSize)
+{
+    std::unique_lock<std::mutex> lock(_stageMutex);
+    LOG_DEBUG(std::string("Added Job stage with ID: ") + _id);
+    _stages.push_back(Stage(func,requiredMemory,inputSize));
+    _bytesProcessed += inputSize;
+}
+
+Job::Stage::Stage(std::function<void (cudaStream_t&)> func,uint64_t requiredBytes, uint64_t inputSize)
+    : lambda(func)
+    , requiredBytes(requiredBytes)
+    , inputSize(inputSize)
+{
+
 }
 void Job::queue()
 {
@@ -77,18 +121,20 @@ void Job::_internalCb()
 
     //At this point, could technically move this all into cudaCb,
     //possibly do that in the future
-    _scheduler->queueCallback(this,[=] () { 
-        this->startTimer();
-        this->_cleanupFunc(); 
-        this->stopTimer();
-        _scheduler->jobDone(this); 
-    });
-
-    /*
-    LOG_DEBUG(std::string("Calling job call back for id: ") + _id);
-    _cleanupFunc();
-    _scheduler->jobDone(this);
-    */
+    if(_done)
+    {
+        _scheduler->queueCallback(this,[=] () { 
+            this->startTimer();
+            this->_cleanupFunc(); 
+            this->stopTimer();
+            _scheduler->jobDone(this);  //calls checkIfCanRunJob
+        });
+    } 
+    else 
+    {
+        //Just let it run it's own scheduler.
+        _scheduler->checkIfCanRunJob();
+    }
 
 }
 int64_t Job::totalMs() const
@@ -144,6 +190,5 @@ void Job::stopTimer()
 }
 int64_t Job::bytesPerMs() const
 {
-    auto totalms = totalMs();
-    return _inputSize / totalms;
+    return bytesProcessed() / totalMs();
 }

@@ -6,7 +6,10 @@
 #include <functional>
 #include <set>
 #include <vector>
+#include <atomic>
+#include <mutex>
 #include <chrono>
+#include <deque>
 #include "Log.h"
 
 
@@ -18,21 +21,27 @@ class Job
         ~Job();
         static std::string GenerateGuid();
         cudaStream_t& getStream();
-        void setupJob(std::function<void (cudaStream_t&)> func,uint64_t requiredMemory,uint64_t inputSize);
+        void addStage(std::function<void (cudaStream_t&)> func,uint64_t requiredMemory,uint64_t inputSize);
         void queue();
         void execute();
         void addFree(void*,bool);
         void registerCleanup(std::function<void ()> clean) { _cleanupFunc = clean; }
-        uint64_t requiredMemory() const { return _requiredBytes; }
+        uint64_t requiredMemory() const;
         void FreeMemory();
+        bool isReady() const;
 
         void startTimer();
         void stopTimer();
+        void setDone();
+        uint64_t lastBytes() const { return _lastBytes; }
 
         static void CUDART_CB cudaCb(cudaStream_t stream, cudaError_t status, void *userData);
 
     private:
         std::string _id;
+        std::atomic_bool _running;
+        std::atomic_bool _done;
+        mutable std::mutex _stageMutex;
         Job();
         void _internalCb();
 
@@ -47,10 +56,20 @@ class Job
         cudaStream_t _stream;
         std::set<std::pair<bool,void*> > _toFree;
         uint64_t _requiredBytes;
-        uint64_t _inputSize;
+        uint64_t _bytesProcessed;
         JobScheduler* _scheduler;
-        std::function<void (cudaStream_t&)> _executionLambda;
+
+        struct Stage 
+        {
+            Stage(std::function<void (cudaStream_t&)>,uint64_t requiredBytes, uint64_t inputSize);
+            std::function<void (cudaStream_t&)> lambda;
+            uint64_t requiredBytes;
+            uint64_t inputSize;
+        };
+
+        std::deque<Stage> _stages;
         std::function<void ()> _cleanupFunc;
+        uint64_t _lastBytes;
 
         struct TimePeriod 
         {
@@ -95,7 +114,7 @@ class Job
         std::vector<TimePeriod> _timePeriods;
         int64_t totalMs() const;
         int64_t bytesPerMs() const;
-        int64_t bytesProcessed() const { return _inputSize; }
+        int64_t bytesProcessed() const { return _bytesProcessed; }
 
 
     friend class JobScheduler;

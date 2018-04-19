@@ -20,12 +20,12 @@ class JobScheduler
     void queueCallback(Job* job, std::function<void ()> func);
 
     void waitUntilDone();
+    void checkIfCanRunJob();
 
     private:
 
         size_t memoryAvailable() const;
         uint64_t highWaterMark() const;
-        void _checkIfCanRunJob();
         int _maxJobs;
         uint64_t _currentMemoryUsage;
         int _currentlyRunningJobs;

@@ -433,10 +433,11 @@ void scatter(float *image, JobScheduler* scheduler, const std::string& outputFil
             cudaFree(lp_8);
             LOG_DEBUG("Cleanup complete");
         });
+        job->setDone(); //do this when you're ready to call your cleanup
         cudaStreamAddCallback(stream,&Job::cudaCb,(void*)job,0);
     };
 
-    job->setupJob(lambda,totalRequiredMemory,bytes);
+    job->addStage(lambda,totalRequiredMemory,bytes);
     job->queue();
 }
 

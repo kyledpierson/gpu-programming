@@ -31,10 +31,10 @@ Job* JobScheduler::addJob()
 void JobScheduler::queueUpJob(Job* job)
 {
     _jobs.push_back(job);
-    _checkIfCanRunJob();
+    checkIfCanRunJob();
 }
 
-void JobScheduler::_checkIfCanRunJob()
+void JobScheduler::checkIfCanRunJob()
 {
     std::unique_lock<std::mutex> lock(_jobLock);
     /* This function will look through all of the current jobs and determine if
@@ -50,12 +50,12 @@ void JobScheduler::_checkIfCanRunJob()
             it = _jobs.end();; //can't do any more....
             break;
         }
-        if((*it)->requiredMemory() + _currentMemoryUsage < highWaterMark())
+        if((*it)->isReady() && (*it)->requiredMemory() + _currentMemoryUsage < highWaterMark())
         {
             //found a job that will work
             LOG_DEBUG(std::string("Found new job I can run that will require ") + std::to_string((*it)->requiredMemory() / 1024 / 1024) + " MB I have " + std::to_string(highWaterMark() / 1024/1024) + " MB avail");;
-            (*it)->execute();
             _currentMemoryUsage += (*it)->requiredMemory();
+            (*it)->execute();
             _currentlyRunningJobs++;
             if(it != _jobs.end())
                 it = _jobs.erase(it);
@@ -86,16 +86,17 @@ void JobScheduler::jobDone(Job* job)
 {
     //TODO: Probably want to mutex this
     _currentlyRunningJobs--;
-    _currentMemoryUsage -= job->requiredMemory();
+    _currentMemoryUsage -= job->lastBytes();
     auto totalTime = job->totalMs();
     LOG_DEBUG(std::string("Job took " ) + std::to_string(totalTime) + " MS");
     LOG_DEBUG(std::string("KBytes/MS for this job: ") + std::to_string(job->bytesPerMs()/(1024)));
+    LOG_DEBUG(std::string("Bytes processed: " + std::to_string(job->bytesProcessed())));
     _totalUsedMs += totalTime;
     _totalBytesDone += job->bytesProcessed();
     _totalFilesProcessed++;
     delete job;
 
-    _checkIfCanRunJob();
+    checkIfCanRunJob();
     _waitCv.notify_all();
 
 }
@@ -105,7 +106,7 @@ size_t JobScheduler::memoryAvailable() const
     //CUDA_SAFE_CALL(cudaMemGetInfo(&freem,&total));
     cudaMemGetInfo(&freem,&total);
 
-    LOG_DEBUG(std::string("Total memory free: ") + std::to_string(freem));
+    //LOG_DEBUG(std::string("Total memory free: ") + std::to_string(freem));
     return freem;
 }
 uint64_t JobScheduler::highWaterMark() const

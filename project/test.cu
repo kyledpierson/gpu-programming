@@ -52,6 +52,6 @@ void test_schedule(JobScheduler* scheduler)
         cudaStreamAddCallback(stream,&Job::cudaCb,(void*)job,0);
     };
 
-    job->setupJob(jobLambda,totalRequiredMemory,totalRequiredMemory);
+    job->addStage(jobLambda,totalRequiredMemory,totalRequiredMemory);
     job->queue(); 
 }
