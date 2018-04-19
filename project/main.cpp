@@ -17,12 +17,15 @@ void scheduleForTransformation(JobScheduler* scheduler, const char* inputFile, c
     bool separable = false;
     int x_size, y_size, maxval;
     unsigned int *image = read_ppm((char*)inputFile, x_size, y_size, maxval);
+
+    std::cout << maxval << std::endl;
+
     int bytes = x_size * y_size * sizeof(int);
     float *fimage = (float*) mem_check(malloc(bytes));
 
     // Copy to float image
     for(int i = 0; i < x_size*y_size; i++) {
-        fimage[i] = (float) image[i] / 255;
+        fimage[i] = (float) image[i] / maxval;
     }
     free(image);
 

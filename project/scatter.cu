@@ -77,7 +77,7 @@ __global__ void gaussian_convolution_2D(float *image, float *result, int x_size,
 
     // Each interior thread computes output
     if (x>=HALO_SIZE && x<blockDim.x-HALO_SIZE && y>=HALO_SIZE && y<blockDim.y-HALO_SIZE) {
-        result[(y_offset/2)*ds_x_size + (x_offset/2)] = convolution_pixel_2D(tile, gaussian_2D, x, y);
+        result[(y_offset/2)*ds_x_size + (x_offset/2)] = 2*convolution_pixel_2D(tile, gaussian_2D, x, y);
     }
 }
 
@@ -314,9 +314,6 @@ void scatter(float *image, JobScheduler* scheduler, const std::string& outputFil
     auto lambda = [=] (cudaStream_t stream) {
         //printf("Executing job lambda...\n");
 
-        int x_active = BLOCKDIM_X-(2*HALO_SIZE);
-        int y_active = BLOCKDIM_Y-(2*HALO_SIZE);
-
         dim3 blocks = num_blocks(x_size, y_size, x_active, y_active);
         dim3 ds_blocks = num_blocks(ds_x_size_1, ds_y_size_1, x_active, y_active);
         dim3 threads(BLOCKDIM_X, BLOCKDIM_Y);
@@ -405,9 +402,17 @@ void scatter(float *image, JobScheduler* scheduler, const std::string& outputFil
             cudaMemcpy(result+3*offset, lp_7, ds_bytes_2, cudaMemcpyDeviceToHost);
             cudaMemcpy(result+4*offset, lp_8, ds_bytes_2, cudaMemcpyDeviceToHost);
 
+            float maxval = 0;
             for(int i = 0; i < offset*5; i++) {
                 //printf("%f\n",result[i]);
-                iresult[i] = result[i] * 255;
+                if (result[i] > maxval) {
+                    maxval = result[i];
+                }
+            }
+
+            for(int i = 0; i < offset*5; i++) {
+                //printf("%f\n",result[i]);
+                iresult[i] = (result[i] / maxval) * 255;
             }
             LOG_DEBUG(std::string("Writing to output file: ") + outputFile);
             write_ppm((char*)outputFile.c_str(), ds_x_size_2, ds_y_size_2*5, 255, iresult);
