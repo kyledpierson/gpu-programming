@@ -82,34 +82,50 @@ __global__ void gaussian_convolution_2D(float *image, float *result, int x_size,
 }
 
 __global__ void morlet_1_convolution_2D(float *image, float *result, int x_size) {
-    cuFloatComplex a = make_cuFloatComplex( 0.0003797, -0.0004059);
-    cuFloatComplex b = make_cuFloatComplex(-0.0000489,  0.0010724);
-    cuFloatComplex c = make_cuFloatComplex(-0.0011745, -0.0011033);
-    cuFloatComplex d = make_cuFloatComplex( 0.0016874,  0        );
+    cuFloatComplex a = make_cuFloatComplex(0.000379696, -0.000405881);
+    cuFloatComplex b = make_cuFloatComplex(-0.0000489192, 0.001072378);
+    cuFloatComplex c = make_cuFloatComplex(-0.001174476, -0.001103299);
+    cuFloatComplex d = make_cuFloatComplex(0.001687397, 0);
 
-    cuFloatComplex e = make_cuFloatComplex( 0.0046257, -0.0049446);
-    cuFloatComplex f = make_cuFloatComplex(-0.0005960,  0.0130642);
-    cuFloatComplex g = make_cuFloatComplex(-0.0143081, -0.0134409);
-    cuFloatComplex h = make_cuFloatComplex( 0.0205567,  0        );
+    cuFloatComplex e = make_cuFloatComplex(0.004625649, -0.004944642);
+    cuFloatComplex f = make_cuFloatComplex(-0.000595958, 0.01306423);
+    cuFloatComplex g = make_cuFloatComplex(-0.01430805, -0.01344093);
+    cuFloatComplex h = make_cuFloatComplex(0.02055671, 0);
 
-    cuFloatComplex i = make_cuFloatComplex( 0.0207307, -0.0221604);
-    cuFloatComplex j = make_cuFloatComplex(-0.0026709,  0.0585498);
-    cuFloatComplex k = make_cuFloatComplex(-0.0641242, -0.0602381);
-    cuFloatComplex l = make_cuFloatComplex( 0.0921288,  0        );
+    cuFloatComplex i = make_cuFloatComplex(0.02073072, -0.02216035);
+    cuFloatComplex j = make_cuFloatComplex(-0.0026709, 0.05854983);
+    cuFloatComplex k = make_cuFloatComplex(-0.06412421, -0.06023807);
+    cuFloatComplex l = make_cuFloatComplex(0.09212878, 0);
 
-    cuFloatComplex m = make_cuFloatComplex( 0.0341792, -0.0365362);
-    cuFloatComplex n = make_cuFloatComplex(-0.0044036,  0.0965324);
-    cuFloatComplex o = make_cuFloatComplex(-0.1057229, -0.0993158);
-    cuFloatComplex p = make_cuFloatComplex( 0.1518947,  0        );
+    cuFloatComplex m = make_cuFloatComplex(0.03417918, -0.03653624);
+    cuFloatComplex n = make_cuFloatComplex(-0.00440357, 0.09653235);
+    cuFloatComplex o = make_cuFloatComplex(-0.1057229, -0.09931579);
+    cuFloatComplex p = make_cuFloatComplex(0.1518947, 0);
+
+    cuFloatComplex ac = cuConjf(a);
+    cuFloatComplex bc = cuConjf(b);
+    cuFloatComplex cc = cuConjf(c);
+
+    cuFloatComplex ec = cuConjf(e);
+    cuFloatComplex fc = cuConjf(f);
+    cuFloatComplex gc = cuConjf(g);
+
+    cuFloatComplex ic = cuConjf(i);
+    cuFloatComplex jc = cuConjf(j);
+    cuFloatComplex kc = cuConjf(k);
+
+    cuFloatComplex mc = cuConjf(m);
+    cuFloatComplex nc = cuConjf(n);
+    cuFloatComplex oc = cuConjf(o);
 
     cuFloatComplex morlet_2D_1[7][7] = {
-        {a, b, c, d, c, b, a},
-        {e, f, g, h, g, f, e},
-        {i, j, k, l, k, j, i},
-        {m, n, o, p, o, n, m},
-        {i, j, k, l, k, j, i},
-        {e, f, g, h, g, f, e},
-        {a, b, c, d, c, b, a}
+        {a, b, c, d, cc, bc, ac},
+        {e, f, g, h, gc, fc, ec},
+        {i, j, k, l, kc, jc, ic},
+        {m, n, o, p, oc, nc, mc},
+        {i, j, k, l, kc, jc, ic},
+        {e, f, g, h, gc, fc, ec},
+        {a, b, c, d, cc, bc, ac}
     };
 
     // Shared memory tile for image data
@@ -130,34 +146,50 @@ __global__ void morlet_1_convolution_2D(float *image, float *result, int x_size)
 }
 
 __global__ void morlet_2_convolution_2D(float *image, float *result, int x_size) {
-    cuFloatComplex a = make_cuFloatComplex( 0.0003797, -0.0004059);
-    cuFloatComplex b = make_cuFloatComplex(-0.0000489,  0.0010724);
-    cuFloatComplex c = make_cuFloatComplex(-0.0011745, -0.0011033);
-    cuFloatComplex d = make_cuFloatComplex( 0.0016874,  0        );
+    cuFloatComplex a = make_cuFloatComplex(0.000379696, -0.000405881);
+    cuFloatComplex b = make_cuFloatComplex(-0.0000489192, 0.001072378);
+    cuFloatComplex c = make_cuFloatComplex(-0.001174476, -0.001103299);
+    cuFloatComplex d = make_cuFloatComplex(0.001687397, 0);
 
-    cuFloatComplex e = make_cuFloatComplex( 0.0046257, -0.0049446);
-    cuFloatComplex f = make_cuFloatComplex(-0.0005960,  0.0130642);
-    cuFloatComplex g = make_cuFloatComplex(-0.0143081, -0.0134409);
-    cuFloatComplex h = make_cuFloatComplex( 0.0205567,  0        );
+    cuFloatComplex e = make_cuFloatComplex(0.004625649, -0.004944642);
+    cuFloatComplex f = make_cuFloatComplex(-0.000595958, 0.01306423);
+    cuFloatComplex g = make_cuFloatComplex(-0.01430805, -0.01344093);
+    cuFloatComplex h = make_cuFloatComplex(0.02055671, 0);
 
-    cuFloatComplex i = make_cuFloatComplex( 0.0207307, -0.0221604);
-    cuFloatComplex j = make_cuFloatComplex(-0.0026709,  0.0585498);
-    cuFloatComplex k = make_cuFloatComplex(-0.0641242, -0.0602381);
-    cuFloatComplex l = make_cuFloatComplex( 0.0921288,  0        );
+    cuFloatComplex i = make_cuFloatComplex(0.02073072, -0.02216035);
+    cuFloatComplex j = make_cuFloatComplex(-0.0026709, 0.05854983);
+    cuFloatComplex k = make_cuFloatComplex(-0.06412421, -0.06023807);
+    cuFloatComplex l = make_cuFloatComplex(0.09212878, 0);
 
-    cuFloatComplex m = make_cuFloatComplex( 0.0341792, -0.0365362);
-    cuFloatComplex n = make_cuFloatComplex(-0.0044036,  0.0965324);
-    cuFloatComplex o = make_cuFloatComplex(-0.1057229, -0.0993158);
-    cuFloatComplex p = make_cuFloatComplex( 0.1518947,  0        );
+    cuFloatComplex m = make_cuFloatComplex(0.03417918, -0.03653624);
+    cuFloatComplex n = make_cuFloatComplex(-0.00440357, 0.09653235);
+    cuFloatComplex o = make_cuFloatComplex(-0.1057229, -0.09931579);
+    cuFloatComplex p = make_cuFloatComplex(0.1518947, 0);
+
+    cuFloatComplex ac = cuConjf(a);
+    cuFloatComplex bc = cuConjf(b);
+    cuFloatComplex cc = cuConjf(c);
+
+    cuFloatComplex ec = cuConjf(e);
+    cuFloatComplex fc = cuConjf(f);
+    cuFloatComplex gc = cuConjf(g);
+
+    cuFloatComplex ic = cuConjf(i);
+    cuFloatComplex jc = cuConjf(j);
+    cuFloatComplex kc = cuConjf(k);
+
+    cuFloatComplex mc = cuConjf(m);
+    cuFloatComplex nc = cuConjf(n);
+    cuFloatComplex oc = cuConjf(o);
 
     cuFloatComplex morlet_2D_2[7][7] = {
         {a, e, i, m, i, e, a},
         {b, f, j, n, j, f, b},
         {c, g, k, o, k, g, c},
         {d, h, l, p, l, h, d},
-        {c, g, k, o, k, g, c},
-        {b, f, j, n, j, f, b},
-        {a, e, i, m, i, e, a}
+        {cc, gc, kc, oc, kc, gc, cc},
+        {bc, fc, jc, nc, jc, fc, bc},
+        {ac, ec, ic, mc, ic, ec, ac}
     };
 
     // Shared memory tile for image data
@@ -402,17 +434,39 @@ void scatter(float *image, JobScheduler* scheduler, const std::string& outputFil
             cudaMemcpy(result+3*offset, lp_7, ds_bytes_2, cudaMemcpyDeviceToHost);
             cudaMemcpy(result+4*offset, lp_8, ds_bytes_2, cudaMemcpyDeviceToHost);
 
-            float maxval = 0;
+            // Find the max for each image
+            float maxval_1 = 0;
+            float maxval_2 = 0;
+            float maxval_3 = 0;
+            float maxval_4 = 0;
+            float maxval_5 = 0;
             for(int i = 0; i < offset*5; i++) {
-                //printf("%f\n",result[i]);
-                if (result[i] > maxval) {
-                    maxval = result[i];
+                if (i/offset == 0 && result[i] > maxval_1) {
+                    maxval_1 = result[i];
+                } else if (i/offset == 1 && result[i] > maxval_2) {
+                    maxval_2 = result[i];
+                } else if (i/offset == 2 && result[i] > maxval_3) {
+                    maxval_3 = result[i];
+                } else if (i/offset == 3 && result[i] > maxval_4) {
+                    maxval_4 = result[i];
+                } else if (i/offset == 4 && result[i] > maxval_5) {
+                    maxval_5 = result[i];
                 }
             }
 
+            // Re-normalize each image to a scale of 0-255
             for(int i = 0; i < offset*5; i++) {
-                //printf("%f\n",result[i]);
-                iresult[i] = (result[i] / maxval) * 255;
+                if (i/offset == 0) {
+                    iresult[i] = (result[i] / maxval_1) * 255;
+                } else if (i/offset == 1) {
+                    iresult[i] = (result[i] / maxval_2) * 255;
+                } else if (i/offset == 2) {
+                    iresult[i] = (result[i] / maxval_3) * 255;
+                } else if (i/offset == 3) {
+                    iresult[i] = (result[i] / maxval_4) * 255;
+                } else if (i/offset == 4) {
+                    iresult[i] = (result[i] / maxval_5) * 255;
+                }
             }
             LOG_DEBUG(std::string("Writing to output file: ") + outputFile);
             write_ppm((char*)outputFile.c_str(), ds_x_size_2, ds_y_size_2*5, 255, iresult);
