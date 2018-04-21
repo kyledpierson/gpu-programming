@@ -52,6 +52,23 @@ __device__ float convolution_pixel_2D(float tile[BLOCKDIM_Y][BLOCKDIM_X+1], floa
 }
 
 // ============================= KERNEL FUNCTIONS =============================
+__global__ void multiply(cuComplex *image, cuComplex *filter, int x_size) {
+    int x = blockIdx.x * BLOCKDIM_X + threadIdx.x;
+    int y = blockIdx.y * BLOCKDIM_Y + threadIdx.y;
+    int offset = y*x_size + x;
+
+    image[offset] = cuCmulf(image[offset], filter[offset]);
+}
+
+__global__ void complex_modulus(cuComplex *image, int x_size) {
+    int x = blockIdx.x * BLOCKDIM_X + threadIdx.x;
+    int y = blockIdx.y * BLOCKDIM_Y + threadIdx.y;
+    int offset = y*x_size + x;
+
+    image[offset].x = cuCabsf(image[offset]);
+    image[offset].y = 0;
+}
+
 __global__ void gaussian_convolution_2D(float *image, float *result, int x_size, int ds_x_size) {
     float gaussian_2D[7][7] = {
         {0.004922330, 0.009196123, 0.013380281, 0.015161844, 0.013380281, 0.009196123, 0.004922330},
@@ -68,15 +85,15 @@ __global__ void gaussian_convolution_2D(float *image, float *result, int x_size,
 
     int x = threadIdx.x;
     int y = threadIdx.y;
-    int x_offset = blockIdx.x*(blockDim.x-(2*HALO_SIZE))+x;
-    int y_offset = blockIdx.y*(blockDim.y-(2*HALO_SIZE))+y;
+    int x_offset = blockIdx.x*(BLOCKDIM_X-(2*HALO_SIZE))+x;
+    int y_offset = blockIdx.y*(BLOCKDIM_Y-(2*HALO_SIZE))+y;
 
     // Load into shared memory
     tile[y][x] = image[y_offset*x_size + x_offset];
     __syncthreads();
 
     // Each interior thread computes output
-    if (x>=HALO_SIZE && x<blockDim.x-HALO_SIZE && y>=HALO_SIZE && y<blockDim.y-HALO_SIZE) {
+    if (x>=HALO_SIZE && x<BLOCKDIM_X-HALO_SIZE && y>=HALO_SIZE && y<BLOCKDIM_Y-HALO_SIZE) {
         result[(y_offset/2)*ds_x_size + (x_offset/2)] = 2*convolution_pixel_2D(tile, gaussian_2D, x, y);
     }
 }
@@ -133,14 +150,14 @@ __global__ void morlet_1_convolution_2D(float *image, float *result, int x_size)
 
     int x = threadIdx.x;
     int y = threadIdx.y;
-    int offset = (blockIdx.y*(blockDim.y-(2*HALO_SIZE))+y)*x_size + (blockIdx.x*(blockDim.x-(2*HALO_SIZE))+x);
+    int offset = (blockIdx.y*(BLOCKDIM_Y-(2*HALO_SIZE))+y)*x_size + (blockIdx.x*(BLOCKDIM_X-(2*HALO_SIZE))+x);
 
     // Load into shared memory
     tile[y][x] = make_cuFloatComplex(image[offset], 0);
     __syncthreads();
 
     // Each interior thread computes output
-    if (x>=HALO_SIZE && x<blockDim.x-HALO_SIZE && y>=HALO_SIZE && y<blockDim.y-HALO_SIZE) {
+    if (x>=HALO_SIZE && x<BLOCKDIM_X-HALO_SIZE && y>=HALO_SIZE && y<BLOCKDIM_Y-HALO_SIZE) {
         result[offset] = convolution_pixel_2D_complex(tile, morlet_2D_1, x, y);
     }
 }
@@ -197,14 +214,14 @@ __global__ void morlet_2_convolution_2D(float *image, float *result, int x_size)
 
     int x = threadIdx.x;
     int y = threadIdx.y;
-    int offset = (blockIdx.y*(blockDim.y-(2*HALO_SIZE))+y)*x_size + (blockIdx.x*(blockDim.x-(2*HALO_SIZE))+x);
+    int offset = (blockIdx.y*(BLOCKDIM_Y-(2*HALO_SIZE))+y)*x_size + (BLOCKDIM_X*(BLOCKDIM_X-(2*HALO_SIZE))+x);
 
     // Load into shared memory
     tile[y][x] = make_cuFloatComplex(image[offset], 0);
     __syncthreads();
 
     // Each interior thread computes output
-    if (x>=HALO_SIZE && x<blockDim.x-HALO_SIZE && y>=HALO_SIZE && y<blockDim.y-HALO_SIZE) {
+    if (x>=HALO_SIZE && x<BLOCKDIM_X-HALO_SIZE && y>=HALO_SIZE && y<BLOCKDIM_Y-HALO_SIZE) {
         result[offset] = convolution_pixel_2D_complex(tile, morlet_2D_2, x, y);
     }
 }
@@ -368,6 +385,8 @@ void scatter(float *image, JobScheduler* scheduler, const std::string& outputFil
         cudaMemset(hp_2, 0, bytes);
 
         if (fourier) {
+            // float* gaussian = mem_check(malloc(bytes));
+            // read_filter("gaussian_480_640.txt", gaussian);
             // gaussian_convolution_fourier();
             // morlet_1_convolution_fourier();
             // morlet_2_convolution_fourier();
