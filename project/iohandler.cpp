@@ -1,4 +1,6 @@
 #include <fcntl.h>
+#include <fstream>
+#include <sstream>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -7,6 +9,8 @@
 
 #include "iohandler.h"
 
+using namespace std;
+
 void* mem_check(void* mem) {
     // Make sure memory is allocated
     if (!mem) {
@@ -14,6 +18,22 @@ void* mem_check(void* mem) {
         exit(-1);
     }
     return mem;
+}
+
+void read_filter(char *filename, float* filter) {
+    ifstream ifs(filename);
+
+    int i = 0;
+    string line;
+    while (getline(ifs, line)) {
+        istringstream iss(line);
+
+        float num;
+        while(iss >> num) {
+            filter[i++] = num;
+        }
+        printf("\n");
+    }
 }
 
 unsigned int *read_ppm(char *filename, int & xsize, int & ysize, int & maxval) {

@@ -14,7 +14,9 @@
 
 void scheduleForTransformation(JobScheduler* scheduler, const char* inputFile, const std::string& outputFile)
 {
+    bool fourier = false;
     bool separable = false;
+
     int x_size, y_size, maxval;
     unsigned int *image = read_ppm((char*)inputFile, x_size, y_size, maxval);
 
@@ -42,7 +44,7 @@ void scheduleForTransformation(JobScheduler* scheduler, const char* inputFile, c
     scatter(fimage, scheduler, outputFile,
             x_size, y_size, bytes,
             ds_x_size_1, ds_y_size_1, ds_bytes_1,
-            ds_x_size_2, ds_y_size_2, ds_bytes_2, separable);
+            ds_x_size_2, ds_y_size_2, ds_bytes_2, fourier, separable);
 }
 
 int main(int argc, char **argv) {
