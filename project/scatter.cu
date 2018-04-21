@@ -6,6 +6,7 @@
 
 #include <cuda.h>
 #include <cuComplex.h>
+#include <cufft.h>
 
 #include "scatter.h"
 #include "iohandler.h"
@@ -52,21 +53,12 @@ __device__ float convolution_pixel_2D(float tile[BLOCKDIM_Y][BLOCKDIM_X+1], floa
 }
 
 // ============================= KERNEL FUNCTIONS =============================
-__global__ void multiply(cuComplex *image, cuComplex *filter, int x_size) {
+__global__ void multiply(cuComplex *image, float *filter, int x_size) {
     int x = blockIdx.x * BLOCKDIM_X + threadIdx.x;
     int y = blockIdx.y * BLOCKDIM_Y + threadIdx.y;
     int offset = y*x_size + x;
 
-    image[offset] = cuCmulf(image[offset], filter[offset]);
-}
-
-__global__ void complex_modulus(cuComplex *image, int x_size) {
-    int x = blockIdx.x * BLOCKDIM_X + threadIdx.x;
-    int y = blockIdx.y * BLOCKDIM_Y + threadIdx.y;
-    int offset = y*x_size + x;
-
-    image[offset].x = cuCabsf(image[offset]);
-    image[offset].y = 0;
+    image[offset] = cuCmulf(image[offset], make_cuFloatComplex(filter[offset], 0));
 }
 
 __global__ void gaussian_convolution_2D(float *image, float *result, int x_size, int ds_x_size) {
@@ -346,7 +338,6 @@ void gaussian_convolution_1D(Job* job, cudaStream_t stream, float* d_image, floa
 void initConsts() {
     float gaussian_1D[7] = {0.071303, 0.131514, 0.189879, 0.214607, 0.189879, 0.131514, 0.071303};
     copy_kernel_1D(gaussian_1D);
-
 }
 
 void scatter(float *image, JobScheduler* scheduler, const std::string& outputFile,
@@ -368,14 +359,11 @@ void scatter(float *image, JobScheduler* scheduler, const std::string& outputFil
         dim3 threads(BLOCKDIM_X, BLOCKDIM_Y);
 
         // Variables
-        float *d_image,
-              *lp_1, *lp_2, *lp_3, *lp_4, *lp_5, *lp_6, *lp_7, *lp_8,
-              *hp_1, *hp_2, *hp_3, *hp_4;
+        float *d_image, *lp_1, *lp_2, *lp_3, *lp_4, *lp_5, *lp_6, *lp_7, *lp_8, *hp_1, *hp_2, *hp_3, *hp_4;
 
         // ----------------------------------------------------------------------------------------------------
         cudaMalloc((float**) &d_image, bytes);
         cudaMemcpy(d_image, image, bytes, cudaMemcpyHostToDevice);
-        free(image);
 
         cudaMalloc((float**) &lp_1, ds_bytes_1);
         cudaMalloc((float**) &hp_1, bytes);
@@ -385,11 +373,56 @@ void scatter(float *image, JobScheduler* scheduler, const std::string& outputFil
         cudaMemset(hp_2, 0, bytes);
 
         if (fourier) {
-            // float* gaussian = mem_check(malloc(bytes));
-            // read_filter("gaussian_480_640.txt", gaussian);
-            // gaussian_convolution_fourier();
-            // morlet_1_convolution_fourier();
-            // morlet_2_convolution_fourier();
+            cufftHandle plan_r2c, plan_c2r;
+            cufftPlan2d(&plan_r2c, y_size, x_size, CUFFT_R2C);
+            cufftPlan2d(&plan_c2r, y_size, x_size, CUFFT_C2R);
+
+            // Create complex image on device
+            cuComplex *c_image, *dc_image;
+            int c_bytes = x_size * y_size * sizeof(cuComplex);
+            cudaMalloc((cuComplex**) &c_image, c_bytes);
+            cudaMalloc((cuComplex**) &dc_image, c_bytes);
+
+            // Convert the image to the Fourier domain
+            cufftExecR2C(plan_r2c, d_image, c_image);
+
+            // Read the gaussian filter (Fourier domain) ==========================================
+            read_filter("gaussian_480_640.txt", image);
+            cudaMemcpy(d_image, image, bytes, cudaMemcpyHostToDevice);
+
+            // Perform multiplication in the Fourier domain
+            cudaMemcpy(dc_image, c_image, bytes, cudaMemcpyDeviceToDevice);
+            multiply<<<blocks, threads, 0, stream>>>(dc_image, d_image, x_size);
+
+            // Convert the image back to the spatial domain and downsample
+            cufftExecC2R(plan_c2r, dc_image, d_image);
+            downsample<<<ds_blocks, threads>>>(d_image, lp_1, x_size, ds_x_size_1);
+
+            // Read the morlet 1 filter (Fourier domain) ==========================================
+            read_filter("morlet_1_480_640.txt", image);
+            cudaMemcpy(d_image, image, bytes, cudaMemcpyHostToDevice);
+
+            // Perform multiplication in the Fourier domain
+            cudaMemcpy(dc_image, c_image, bytes, cudaMemcpyDeviceToDevice);
+            multiply<<<blocks, threads, 0, stream>>>(dc_image, d_image, x_size);
+
+            // Convert the image back to the spatial domain and downsample
+            cufftExecC2R(plan_c2r, dc_image, hp_1);
+
+            // Read the morlet 2 filter (Fourier domain) ==========================================
+            read_filter("morlet_2_480_640.txt", image);
+            cudaMemcpy(d_image, image, bytes, cudaMemcpyHostToDevice);
+
+            // Perform multiplication in the Fourier domain
+            cudaMemcpy(dc_image, c_image, bytes, cudaMemcpyDeviceToDevice);
+            multiply<<<blocks, threads, 0, stream>>>(dc_image, d_image, x_size);
+
+            // Convert the image back to the spatial domain and downsample
+            cufftExecC2R(plan_c2r, dc_image, hp_2);
+
+            // Free memory
+            cudaFree(c_image);
+            cudaFree(dc_image);
         } else {
             if (separable) {
                 gaussian_convolution_1D(job,stream,d_image, lp_1, x_size, y_size, bytes, ds_x_size_1, ds_y_size_1, ds_bytes_1);
@@ -399,33 +432,26 @@ void scatter(float *image, JobScheduler* scheduler, const std::string& outputFil
             morlet_1_convolution_2D<<<blocks, threads,0,stream>>>(d_image, hp_1, x_size);
             morlet_2_convolution_2D<<<blocks, threads,0,stream>>>(d_image, hp_2, x_size);
         }
+        free(image);
         cudaFree(d_image);
 
         // ----------------------------------------------------------------------------------------------------
         cudaMalloc((float**) &lp_3, ds_bytes_1);
         cudaMemset(lp_3, 0, ds_bytes_1);
-        if (fourier) {
-            // gaussian_convolution_fourier();
+        if (separable) {
+            gaussian_convolution_1D(job,stream,hp_1, lp_3, x_size, y_size, bytes, ds_x_size_1, ds_y_size_1, ds_bytes_1);
         } else {
-            if (separable) {
-                gaussian_convolution_1D(job,stream,hp_1, lp_3, x_size, y_size, bytes, ds_x_size_1, ds_y_size_1, ds_bytes_1);
-            } else {
-                gaussian_convolution_2D<<<blocks, threads,0,stream>>>(hp_1, lp_3, x_size, ds_x_size_1);
-            }
+            gaussian_convolution_2D<<<blocks, threads,0,stream>>>(hp_1, lp_3, x_size, ds_x_size_1);
         }
         cudaFree(hp_1);
 
         // ----------------------------------------------------------------------------------------------------
         cudaMalloc((float**) &lp_5, ds_bytes_1);
         cudaMemset(lp_5, 0, ds_bytes_1);
-        if (fourier) {
-            // gaussian_convolution_fourier();
+        if (separable) {
+            gaussian_convolution_1D(job,stream,hp_2, lp_5, x_size, y_size, bytes, ds_x_size_1, ds_y_size_1, ds_bytes_1);
         } else {
-            if (separable) {
-                gaussian_convolution_1D(job,stream,hp_2, lp_5, x_size, y_size, bytes, ds_x_size_1, ds_y_size_1, ds_bytes_1);
-            } else {
-                gaussian_convolution_2D<<<blocks, threads,0,stream>>>(hp_2, lp_5, x_size, ds_x_size_1);
-            }
+            gaussian_convolution_2D<<<blocks, threads,0,stream>>>(hp_2, lp_5, x_size, ds_x_size_1);
         }
         cudaFree(hp_2);
 
@@ -436,74 +462,52 @@ void scatter(float *image, JobScheduler* scheduler, const std::string& outputFil
         cudaMemset(lp_2, 0, ds_bytes_2);
         cudaMemset(hp_3, 0, ds_bytes_1);
         cudaMemset(hp_4, 0, ds_bytes_1);
-        if (fourier) {
-            // gaussian_convolution_fourier();
-            // morlet_1_convolution_fourier();
-            // morlet_2_convolution_fourier();
+        if (separable) {
+            gaussian_convolution_1D(job,stream,lp_1, lp_2, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
         } else {
-            if (separable) {
-                gaussian_convolution_1D(job,stream,lp_1, lp_2, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
-            } else {
-                gaussian_convolution_2D<<<ds_blocks, threads,0,stream>>>(lp_1, lp_2, ds_x_size_1, ds_x_size_2);
-            }
-            morlet_1_convolution_2D<<<ds_blocks, threads,0,stream>>>(lp_1, hp_3, ds_x_size_1);
-            morlet_2_convolution_2D<<<ds_blocks, threads,0,stream>>>(lp_1, hp_4, ds_x_size_1);
+            gaussian_convolution_2D<<<ds_blocks, threads,0,stream>>>(lp_1, lp_2, ds_x_size_1, ds_x_size_2);
         }
+        morlet_1_convolution_2D<<<ds_blocks, threads,0,stream>>>(lp_1, hp_3, ds_x_size_1);
+        morlet_2_convolution_2D<<<ds_blocks, threads,0,stream>>>(lp_1, hp_4, ds_x_size_1);
         cudaFree(lp_1);
 
         // ----------------------------------------------------------------------------------------------------
         cudaMalloc((float**) &lp_4, ds_bytes_2);
         cudaMemset(lp_4, 0, ds_bytes_2);
-        if (fourier) {
-            // gaussian_convolution_fourier();
+        if (separable) {
+            gaussian_convolution_1D(job,stream,lp_3, lp_4, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
         } else {
-            if (separable) {
-                gaussian_convolution_1D(job,stream,lp_3, lp_4, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
-            } else {
-                gaussian_convolution_2D<<<ds_blocks, threads,0,stream>>>(lp_3, lp_4, ds_x_size_1, ds_x_size_2);
-            }
+            gaussian_convolution_2D<<<ds_blocks, threads,0,stream>>>(lp_3, lp_4, ds_x_size_1, ds_x_size_2);
         }
         cudaFree(lp_3);
 
         // ----------------------------------------------------------------------------------------------------
         cudaMalloc((float**) &lp_6, ds_bytes_2);
         cudaMemset(lp_6, 0, ds_bytes_2);
-        if (fourier) {
-            // gaussian_convolution_fourier();
+        if (separable) {
+            gaussian_convolution_1D(job,stream,lp_5, lp_6, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
         } else {
-            if (separable) {
-                gaussian_convolution_1D(job,stream,lp_5, lp_6, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
-            } else {
-                gaussian_convolution_2D<<<ds_blocks, threads,0,stream>>>(lp_5, lp_6, ds_x_size_1, ds_x_size_2);
-            }
+            gaussian_convolution_2D<<<ds_blocks, threads,0,stream>>>(lp_5, lp_6, ds_x_size_1, ds_x_size_2);
         }
         cudaFree(lp_5);
 
         // ----------------------------------------------------------------------------------------------------
         cudaMalloc((float**) &lp_7, ds_bytes_2);
         cudaMemset(lp_7, 0, ds_bytes_2);
-        if (fourier) {
-            // gaussian_convolution_fourier();
+        if (separable) {
+            gaussian_convolution_1D(job,stream,hp_3, lp_7, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
         } else {
-            if (separable) {
-                gaussian_convolution_1D(job,stream,hp_3, lp_7, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
-            } else {
-                gaussian_convolution_2D<<<ds_blocks, threads,0,stream>>>(hp_3, lp_7, ds_x_size_1, ds_x_size_2);
-            }
+            gaussian_convolution_2D<<<ds_blocks, threads,0,stream>>>(hp_3, lp_7, ds_x_size_1, ds_x_size_2);
         }
         cudaFree(hp_3);
 
         // ----------------------------------------------------------------------------------------------------
         cudaMalloc((float**) &lp_8, ds_bytes_2);
         cudaMemset(lp_8, 0, ds_bytes_2);
-        if (fourier) {
-            // gaussian_convolution_fourier();
+        if (separable) {
+            gaussian_convolution_1D(job,stream,hp_4, lp_8, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
         } else {
-            if (separable) {
-                gaussian_convolution_1D(job,stream,hp_4, lp_8, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
-            } else {
-                gaussian_convolution_2D<<<ds_blocks, threads,0,stream>>>(hp_4, lp_8, ds_x_size_1, ds_x_size_2);
-            }
+            gaussian_convolution_2D<<<ds_blocks, threads,0,stream>>>(hp_4, lp_8, ds_x_size_1, ds_x_size_2);
         }
         cudaFree(hp_4);
 
@@ -569,11 +573,12 @@ void scatter(float *image, JobScheduler* scheduler, const std::string& outputFil
             cudaFree(lp_8);
             LOG_DEBUG("Cleanup complete");
         });
-        job->setDone(); //do this when you're ready to call your cleanup
+        job->setDone(); // do this when you're ready to call your cleanup
         cudaStreamAddCallback(stream,&Job::cudaCb,(void*)job,0);
     };
 
     job->addStage(lambda,totalRequiredMemory,bytes);
     job->queue();
 }
+
 

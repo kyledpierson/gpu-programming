@@ -12,7 +12,7 @@ FLAGS=-g --expt-extended-lambda
 #FLAGS=-g
 
 $(EXECUTABLE): $(SOURCE) $(HEADERS)
-	$(CC) $(FLAGS) $(INCLUDE) $(SOURCE) -o $@
+	$(CC) $(FLAGS) $(INCLUDE) $(SOURCE) -o $@ -lcufft
 
 clean:
 	rm -f analysis.nvvp core* result*.ppm scatter scatter.out scatter.err
