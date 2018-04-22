@@ -39,19 +39,23 @@ bool Job::isReady() const
 
 void Job::execute() //exeecutes a stage
 {
-    LOG_DEBUG(std::string("Executing Job Stage with ID: ") + _id);
     //TODO: Lambda?
+    LOG_DEBUG("Checking if job can run...");
     std::unique_lock<std::mutex> lock(_stageMutex);
     if(_stages.size() > 0)
     {
+        LOG_DEBUG(std::string("Executing Job Stage with ID: ") + _id);
         startTimer();
         _running = true;
-        Stage& stage = _stages.front();
+        //incur lambda copy penalty :(
+        Stage stage = _stages.front();
+        _stages.pop_front();
+        lock.unlock();
         stage.lambda(_stream);
         _lastBytes = stage.requiredBytes;
-        _stages.pop_front();
         _running = false;
     }
+    _scheduler->ping();
 }
 uint64_t Job::requiredMemory() const
 {
@@ -63,11 +67,12 @@ uint64_t Job::requiredMemory() const
     return 0;
 }
 
+
 void Job::addStage(std::function<void (cudaStream_t&)> func,uint64_t requiredMemory,uint64_t inputSize)
 {
     std::unique_lock<std::mutex> lock(_stageMutex);
     LOG_DEBUG(std::string("Added Job stage with ID: ") + _id);
-    _stages.push_back(Stage(func,requiredMemory,inputSize));
+    _stages.emplace_back(Stage(std::move(func),requiredMemory,inputSize));
     _bytesProcessed += inputSize;
 }
 

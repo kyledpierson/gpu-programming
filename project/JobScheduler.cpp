@@ -57,8 +57,10 @@ void JobScheduler::checkIfCanRunJob()
             _currentMemoryUsage += (*it)->requiredMemory();
             (*it)->execute();
             _currentlyRunningJobs++;
+            /*
             if(it != _jobs.end())
                 it = _jobs.erase(it);
+            */
         }
         else
         {
@@ -82,6 +84,10 @@ void JobScheduler::waitUntilDone()
     LOG_DEBUG(std::string("KB/S: ") + std::to_string((_totalBytesDone /1024) / (_totalUsedMs / 1000)))
 
 }
+void JobScheduler::ping()
+{
+    _waitCv.notify_all();
+}
 void JobScheduler::jobDone(Job* job)
 {
     //TODO: Probably want to mutex this
@@ -91,9 +97,20 @@ void JobScheduler::jobDone(Job* job)
     LOG_DEBUG(std::string("Job took " ) + std::to_string(totalTime) + " MS");
     LOG_DEBUG(std::string("KBytes/MS for this job: ") + std::to_string(job->bytesPerMs()/(1024)));
     LOG_DEBUG(std::string("Bytes processed: " + std::to_string(job->bytesProcessed())));
+    LOG_FILE(std::string("Job took ") + std::to_string(totalTime) + std::string(" MS processed ") + std::to_string(job->bytesProcessed()) + std::string(" bytes"));
     _totalUsedMs += totalTime;
     _totalBytesDone += job->bytesProcessed();
     _totalFilesProcessed++;
+    for(auto it = _jobs.begin(); it != _jobs.end(); it++)
+    {
+        if((*it)->id() == job->id())
+        {
+            _jobs.erase(it);
+            _waitCv.notify_all();
+            break;
+        }
+
+    }
     delete job;
 
     checkIfCanRunJob();

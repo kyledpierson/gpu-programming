@@ -29,6 +29,7 @@ class Job
         uint64_t requiredMemory() const;
         void FreeMemory();
         bool isReady() const;
+        std::string id() const { return _id; }
 
         void startTimer();
         void stopTimer();

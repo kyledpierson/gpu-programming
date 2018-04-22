@@ -340,7 +340,7 @@ void initConsts() {
     copy_kernel_1D(gaussian_1D);
 }
 
-void scatter(float *image, JobScheduler* scheduler, const std::string& outputFile,
+void scatter(float *image, JobScheduler* scheduler, std::string outputFile,
              int x_size, int y_size, int bytes,
              int ds_x_size_1, int ds_y_size_1, int ds_bytes_1,
              int ds_x_size_2, int ds_y_size_2, int ds_bytes_2, bool fourier, bool separable) {
@@ -351,8 +351,10 @@ void scatter(float *image, JobScheduler* scheduler, const std::string& outputFil
     uint64_t totalRequiredMemory = 0;
     totalRequiredMemory += (ds_bytes_1*5) + (ds_bytes_2*5) + (bytes*3);
     Job* job = scheduler->addJob();
+    LOG_DEBUG(std::string("Adding job for ") + outputFile);
     auto lambda = [=] (cudaStream_t stream) {
-        //printf("Executing job lambda...\n");
+        //printf("Executing job lambda for %s\n",outputFile.c_str());
+        LOG_DEBUG(std::string("Executing job for ") + outputFile);
 
         dim3 blocks = num_blocks(x_size, y_size, x_active, y_active);
         dim3 ds_blocks = num_blocks(ds_x_size_1, ds_y_size_1, x_active, y_active);
@@ -512,8 +514,8 @@ void scatter(float *image, JobScheduler* scheduler, const std::string& outputFil
         cudaFree(hp_4);
 
         // ========================================================================
-        job->registerCleanup([=] () {
-            //printf("Executing cleanup\n");
+        job->registerCleanup(std::move([=] () {
+            printf("Executing cleanup for %s\n",outputFile.c_str());
             int *iresult = (int*) mem_check(malloc(ds_bytes_2*5));
             float *result = (float*) mem_check(malloc(ds_bytes_2*5));
             int offset = ds_x_size_2*ds_y_size_2;
@@ -572,12 +574,12 @@ void scatter(float *image, JobScheduler* scheduler, const std::string& outputFil
             cudaFree(lp_7);
             cudaFree(lp_8);
             LOG_DEBUG("Cleanup complete");
-        });
-        job->setDone(); // do this when you're ready to call your cleanup
+        }));
+        job->setDone(); //do this when you're ready to call your cleanup
         cudaStreamAddCallback(stream,&Job::cudaCb,(void*)job,0);
     };
 
-    job->addStage(lambda,totalRequiredMemory,bytes);
+    job->addStage(std::move(lambda),totalRequiredMemory,bytes);
     job->queue();
 }
 

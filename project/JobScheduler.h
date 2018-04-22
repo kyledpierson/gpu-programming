@@ -21,6 +21,7 @@ class JobScheduler
 
     void waitUntilDone();
     void checkIfCanRunJob();
+    void ping();
 
     private:
 
