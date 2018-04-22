@@ -206,7 +206,7 @@ __global__ void morlet_2_convolution_2D(float *image, float *result, int x_size)
 
     int x = threadIdx.x;
     int y = threadIdx.y;
-    int offset = (blockIdx.y*(BLOCKDIM_Y-(2*HALO_SIZE))+y)*x_size + (BLOCKDIM_X*(BLOCKDIM_X-(2*HALO_SIZE))+x);
+    int offset = (blockIdx.y*(BLOCKDIM_Y-(2*HALO_SIZE))+y)*x_size + (blockIdx.x*(BLOCKDIM_X-(2*HALO_SIZE))+x);
 
     // Load into shared memory
     tile[y][x] = make_cuFloatComplex(image[offset], 0);
