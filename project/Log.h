@@ -5,9 +5,13 @@
 #include <iostream>
 
 #define LOG_DEBUG(str) Log::log("DEBUG",str);
+#define LOG_FILE(str) Log::log_file(str)
 
 namespace Log {
     void log(const std::string& level, const std::string&);
+    void log_file(const std::string& line);
+    void initLogFile(const std::string& logFile);
+    void closeLog();
     std::string timeString();
 };
 

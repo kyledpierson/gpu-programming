@@ -58,6 +58,8 @@ int main(int argc, char **argv) {
     // Compute the scattering transform
     JobScheduler scheduler(0);
 
+    Log::initLogFile("scatter.log");
+    LOG_FILE("Starting Scatter log");
     //Pre-process for all
     FileCrawler crawler("source",".ppm");
     crawler.crawl();
@@ -81,4 +83,6 @@ int main(int argc, char **argv) {
     */
 
     scheduler.waitUntilDone();
+    LOG_FILE("Finish Scatter log");
+    Log::closeLog();
 }
