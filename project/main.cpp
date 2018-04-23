@@ -20,7 +20,7 @@ void scheduleForTransformation(JobScheduler* scheduler, const char* inputFile, c
     int x_size, y_size, maxval;
     unsigned int *image = read_ppm((char*)inputFile, x_size, y_size, maxval);
 
-    std::cout << maxval << std::endl;
+    //std::cout << maxval << std::endl;
 
     int bytes = x_size * y_size * sizeof(int);
     float *fimage = (float*) mem_check(malloc(bytes));

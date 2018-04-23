@@ -515,7 +515,7 @@ void scatter(float *image, JobScheduler* scheduler, std::string outputFile,
 
         // ========================================================================
         job->registerCleanup(std::move([=] () {
-            printf("Executing cleanup for %s\n",outputFile.c_str());
+            //printf("Executing cleanup for %s\n",outputFile.c_str());
             int *iresult = (int*) mem_check(malloc(ds_bytes_2*5));
             float *result = (float*) mem_check(malloc(ds_bytes_2*5));
             int offset = ds_x_size_2*ds_y_size_2;

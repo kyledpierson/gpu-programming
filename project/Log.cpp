@@ -12,7 +12,7 @@ namespace Log {
         if(logFile.size() > 0)
         {
             logHandle.write(std::string(line + "\n").c_str(),line.size() + 1);
-        } 
+        }
         else
         {
             log("ERROR","No log file opened to log to");

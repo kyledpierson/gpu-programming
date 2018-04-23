@@ -42,7 +42,7 @@ unsigned int *read_ppm(char *filename, int & xsize, int & ysize, int & maxval) {
         return NULL;  // fail
     }
 
-    fprintf(stderr, "read_ppm( %s )\n", filename);
+//    fprintf(stderr, "read_ppm( %s )\n", filename);
     int fd = open( filename, O_RDONLY);
     if (fd == -1) {
         fprintf(stderr, "read_ppm()    ERROR  file '%s' cannot be opened for reading\n", filename);
@@ -64,7 +64,7 @@ unsigned int *read_ppm(char *filename, int & xsize, int & ysize, int & maxval) {
     }
 
     num = sscanf(ptr, "%d\n%d\n%d",  &width, &height, &maxvalue);
-    fprintf(stderr, "read %d things   width %d  height %d  maxval %d\n", num, width, height, maxvalue);
+    //fprintf(stderr, "read %d things   width %d  height %d  maxval %d\n", num, width, height, maxvalue);
     xsize = width;
     ysize = height;
     maxval = maxvalue;
@@ -94,13 +94,13 @@ unsigned int *read_ppm(char *filename, int & xsize, int & ysize, int & maxval) {
     sprintf(duh, "%d\0", maxval);
     line = strstr(line, duh);
 
-    fprintf(stderr, "%s found at offset %d\n", duh, line - chars);
+    //fprintf(stderr, "%s found at offset %d\n", duh, line - chars);
     line += strlen(duh) + 1;
 
     long offset = line - chars;
     lseek(fd, offset, SEEK_SET); // move to the correct offset
     long numread = read(fd, buf, bufsize);
-    fprintf(stderr, "Texture %s   read %ld of %ld bytes\n", filename, numread, bufsize);
+    //fprintf(stderr, "Texture %s   read %ld of %ld bytes\n", filename, numread, bufsize);
 
     close(fd);
 
@@ -114,7 +114,7 @@ unsigned int *read_ppm(char *filename, int & xsize, int & ysize, int & maxval) {
 void write_ppm(char *filename, int xsize, int ysize, int maxval, int *pic) {
     FILE *fp;
 
-    fprintf(stderr,"Writing file of xsize: %d and y size: %d, maxval %d\n",xsize,ysize,maxval);
+    //fprintf(stderr,"Writing file of xsize: %d and y size: %d, maxval %d\n",xsize,ysize,maxval);
 
     fp = fopen(filename, "w");
     if (!fp) {

@@ -45,7 +45,7 @@ void Job::execute() //exeecutes a stage
     std::unique_lock<std::mutex> lock(_stageMutex);
     if(_stages.size() > 0)
     {
-        LOG_DEBUG(std::string("Executing Job Stage with ID: ") + _id);
+        LOG_INFO(std::string("Executing Job Stage with ID: ") + _id);
         startTimer();
         _running = true;
         //incur lambda copy penalty :(
@@ -129,6 +129,7 @@ void Job::_internalCb()
     //possibly do that in the future
     if(_done)
     {
+        LOG_INFO("Job " + _id + " done");
         _scheduler->queueCallback(this,[=] () {
             this->startTimer();
             this->_cleanupFunc();

@@ -5,6 +5,7 @@
 #include <iostream>
 
 #define LOG_DEBUG(str) Log::log("DEBUG",str);
+#define LOG_INFO(str) Log::log("INFO",str);
 #define LOG_FILE(str) Log::log_file(str)
 
 namespace Log {

@@ -48,21 +48,17 @@ void JobScheduler::checkIfCanRunJob()
         //0 denotes no job limit
         if(_maxJobs > 0 && _maxJobs <= _currentlyRunningJobs)
         {
-            LOG_DEBUG("Already at the maximum number of jobs...");
+            LOG_INFO("Already at the maximum number of jobs...");
             it = _jobs.end();; //can't do any more....
             break;
         }
         if((*it)->isReady() && (*it)->requiredMemory() + _currentMemoryUsage < highWaterMark())
         {
             //found a job that will work
-            LOG_DEBUG(std::string("Found new job I can run that will require ") + std::to_string((*it)->requiredMemory() / 1024 / 1024) + " MB I have " + std::to_string(highWaterMark() / 1024/1024) + " MB avail");;
+            LOG_INFO(std::string("Found new job I can run that will require ") + std::to_string((*it)->requiredMemory() / 1024 / 1024) + " MB I have " + std::to_string(highWaterMark() / 1024/1024) + " MB avail");;
             _currentMemoryUsage += (*it)->requiredMemory();
-            (*it)->execute();
             _currentlyRunningJobs++;
-            /*
-            if(it != _jobs.end())
-                it = _jobs.erase(it);
-            */
+            (*it)->execute();
         }
         else
         {
@@ -77,14 +73,14 @@ void JobScheduler::waitUntilDone()
     std::unique_lock<std::mutex> lk(m);
     while(_currentlyRunningJobs > 0 || _jobs.size() > 0)
         _waitCv.wait(lk);
-    LOG_DEBUG("Falling out of the wait, no more jobs to process");
-    LOG_DEBUG("----------------------")
-    LOG_DEBUG("-- FINISH --");
-    LOG_DEBUG("----------------------")
-    LOG_DEBUG("Completed " + std::to_string(_totalFilesProcessed) + " files");
-    LOG_DEBUG("Total Bytes Processed: " + std::to_string(_totalBytesDone/1024/1024) + " MB");
-    LOG_DEBUG("Total time: " + std::to_string((float)((float)_totalUsedMs / 1000)));
-    LOG_DEBUG(std::string("KB/S: ") + std::to_string((_totalBytesDone /1024) / (float)(_totalUsedMs / 1000)))
+    LOG_INFO("Falling out of the wait, no more jobs to process");
+    LOG_INFO("----------------------")
+    LOG_INFO("-- FINISH --");
+    LOG_INFO("----------------------")
+    LOG_INFO("Completed " + std::to_string(_totalFilesProcessed) + " files");
+    LOG_INFO("Total Bytes Processed: " + std::to_string(_totalBytesDone/1024/1024) + " MB");
+    LOG_INFO("Total time: " + std::to_string((float)((float)_totalUsedMs / 1000)));
+    LOG_INFO(std::string("KB/S: ") + std::to_string((_totalBytesDone /1024) / (float)(_totalUsedMs / 1000)))
 
 }
 void JobScheduler::ping()
