@@ -6,7 +6,7 @@
 
 #define BLOCKDIM_X   32
 #define BLOCKDIM_Y   32
-#define RESULT_STEPS 8
+#define RESULT_STEPS 1
 #define HALO_STEPS   1
 
 #include "JobScheduler.h"
