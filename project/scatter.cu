@@ -365,14 +365,14 @@ void scatter(float *image, JobScheduler* scheduler, std::string outputFile,
 
         // ----------------------------------------------------------------------------------------------------
         cudaMalloc((float**) &d_image, bytes);
-        cudaMemcpy(d_image, image, bytes, cudaMemcpyHostToDevice);
+        cudaMemcpyAsync(d_image, image, bytes, cudaMemcpyHostToDevice,stream);
 
         cudaMalloc((float**) &lp_1, ds_bytes_1);
         cudaMalloc((float**) &hp_1, bytes);
         cudaMalloc((float**) &hp_2, bytes);
-        cudaMemset(lp_1, 0, ds_bytes_1);
-        cudaMemset(hp_1, 0, bytes);
-        cudaMemset(hp_2, 0, bytes);
+        cudaMemsetAsync(lp_1, 0, ds_bytes_1,stream);
+        cudaMemsetAsync(hp_1, 0, bytes,stream);
+        cudaMemsetAsync(hp_2, 0, bytes,stream);
 
         if (fourier) {
             cufftHandle plan_r2c, plan_c2r;
@@ -390,10 +390,10 @@ void scatter(float *image, JobScheduler* scheduler, std::string outputFile,
 
             // Read the gaussian filter (Fourier domain) ==========================================
             read_filter("gaussian_480_640.txt", image);
-            cudaMemcpy(d_image, image, bytes, cudaMemcpyHostToDevice);
+            cudaMemcpyAsync(d_image, image, bytes, cudaMemcpyHostToDevice,stream);
 
             // Perform multiplication in the Fourier domain
-            cudaMemcpy(dc_image, c_image, bytes, cudaMemcpyDeviceToDevice);
+            cudaMemcpyAsync(dc_image, c_image, bytes, cudaMemcpyDeviceToDevice,stream);
             multiply<<<blocks, threads, 0, stream>>>(dc_image, d_image, x_size);
 
             // Convert the image back to the spatial domain and downsample
@@ -439,7 +439,7 @@ void scatter(float *image, JobScheduler* scheduler, std::string outputFile,
 
         // ----------------------------------------------------------------------------------------------------
         cudaMalloc((float**) &lp_3, ds_bytes_1);
-        cudaMemset(lp_3, 0, ds_bytes_1);
+        cudaMemsetAsync(lp_3, 0, ds_bytes_1,stream);
         if (separable) {
             gaussian_convolution_1D(job,stream,hp_1, lp_3, x_size, y_size, bytes, ds_x_size_1, ds_y_size_1, ds_bytes_1);
         } else {
@@ -449,7 +449,7 @@ void scatter(float *image, JobScheduler* scheduler, std::string outputFile,
 
         // ----------------------------------------------------------------------------------------------------
         cudaMalloc((float**) &lp_5, ds_bytes_1);
-        cudaMemset(lp_5, 0, ds_bytes_1);
+        cudaMemsetAsync(lp_5, 0, ds_bytes_1,stream);
         if (separable) {
             gaussian_convolution_1D(job,stream,hp_2, lp_5, x_size, y_size, bytes, ds_x_size_1, ds_y_size_1, ds_bytes_1);
         } else {
@@ -461,9 +461,9 @@ void scatter(float *image, JobScheduler* scheduler, std::string outputFile,
         cudaMalloc((float**) &lp_2, ds_bytes_2);
         cudaMalloc((float**) &hp_3, ds_bytes_1);
         cudaMalloc((float**) &hp_4, ds_bytes_1);
-        cudaMemset(lp_2, 0, ds_bytes_2);
-        cudaMemset(hp_3, 0, ds_bytes_1);
-        cudaMemset(hp_4, 0, ds_bytes_1);
+        cudaMemsetAsync(lp_2, 0, ds_bytes_2,stream);
+        cudaMemsetAsync(hp_3, 0, ds_bytes_1,stream);
+        cudaMemsetAsync(hp_4, 0, ds_bytes_1,stream);
         if (separable) {
             gaussian_convolution_1D(job,stream,lp_1, lp_2, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
         } else {
@@ -475,7 +475,7 @@ void scatter(float *image, JobScheduler* scheduler, std::string outputFile,
 
         // ----------------------------------------------------------------------------------------------------
         cudaMalloc((float**) &lp_4, ds_bytes_2);
-        cudaMemset(lp_4, 0, ds_bytes_2);
+        cudaMemsetAsync(lp_4, 0, ds_bytes_2,stream);
         if (separable) {
             gaussian_convolution_1D(job,stream,lp_3, lp_4, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
         } else {
@@ -485,7 +485,7 @@ void scatter(float *image, JobScheduler* scheduler, std::string outputFile,
 
         // ----------------------------------------------------------------------------------------------------
         cudaMalloc((float**) &lp_6, ds_bytes_2);
-        cudaMemset(lp_6, 0, ds_bytes_2);
+        cudaMemsetAsync(lp_6, 0, ds_bytes_2,stream);
         if (separable) {
             gaussian_convolution_1D(job,stream,lp_5, lp_6, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
         } else {
@@ -495,7 +495,7 @@ void scatter(float *image, JobScheduler* scheduler, std::string outputFile,
 
         // ----------------------------------------------------------------------------------------------------
         cudaMalloc((float**) &lp_7, ds_bytes_2);
-        cudaMemset(lp_7, 0, ds_bytes_2);
+        cudaMemsetAsync(lp_7, 0, ds_bytes_2,stream);
         if (separable) {
             gaussian_convolution_1D(job,stream,hp_3, lp_7, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
         } else {
@@ -505,7 +505,7 @@ void scatter(float *image, JobScheduler* scheduler, std::string outputFile,
 
         // ----------------------------------------------------------------------------------------------------
         cudaMalloc((float**) &lp_8, ds_bytes_2);
-        cudaMemset(lp_8, 0, ds_bytes_2);
+        cudaMemsetAsync(lp_8, 0, ds_bytes_2,stream);
         if (separable) {
             gaussian_convolution_1D(job,stream,hp_4, lp_8, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
         } else {
@@ -520,11 +520,11 @@ void scatter(float *image, JobScheduler* scheduler, std::string outputFile,
             float *result = (float*) mem_check(malloc(ds_bytes_2*5));
             int offset = ds_x_size_2*ds_y_size_2;
 
-            cudaMemcpy(result, lp_2, ds_bytes_2, cudaMemcpyDeviceToHost);
-            cudaMemcpy(result+offset, lp_4, ds_bytes_2, cudaMemcpyDeviceToHost);
-            cudaMemcpy(result+2*offset, lp_6, ds_bytes_2, cudaMemcpyDeviceToHost);
-            cudaMemcpy(result+3*offset, lp_7, ds_bytes_2, cudaMemcpyDeviceToHost);
-            cudaMemcpy(result+4*offset, lp_8, ds_bytes_2, cudaMemcpyDeviceToHost);
+            cudaMemcpyAsync(result, lp_2, ds_bytes_2, cudaMemcpyDeviceToHost,stream);
+            cudaMemcpyAsync(result+offset, lp_4, ds_bytes_2, cudaMemcpyDeviceToHost,stream);
+            cudaMemcpyAsync(result+2*offset, lp_6, ds_bytes_2, cudaMemcpyDeviceToHost,stream);
+            cudaMemcpyAsync(result+3*offset, lp_7, ds_bytes_2, cudaMemcpyDeviceToHost,stream);
+            cudaMemcpyAsync(result+4*offset, lp_8, ds_bytes_2, cudaMemcpyDeviceToHost,stream);
 
             // Find the max for each image
             float maxval_1 = 0;
