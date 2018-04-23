@@ -76,6 +76,10 @@ int main(int argc, char **argv) {
         if(out.size() > 0 && file.path().size() > 0)
         {
             LOG_INFO(file.path() + " -> " + out);
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            while(sPointer->currentJobs() > 10)
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
             tp.queueJob(([=] () {
                 scheduleForTransformation(sPointer,file.path().c_str(),out);
                 }));
