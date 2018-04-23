@@ -15,4 +15,4 @@ $(EXECUTABLE): $(SOURCE) $(HEADERS)
 	$(CC) $(FLAGS) $(INCLUDE) $(SOURCE) -o $@ -lcufft
 
 clean:
-	rm -f analysis.nvvp core* result*.ppm scatter scatter.out scatter.err
+	rm -f analysis.nvvp core* output/* result*.ppm scatter scatter.log scatter.out scatter.err

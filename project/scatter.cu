@@ -389,7 +389,7 @@ void scatter(float *image, JobScheduler* scheduler, std::string outputFile,
             cufftExecR2C(plan_r2c, d_image, c_image);
 
             // Read the gaussian filter (Fourier domain) ==========================================
-            read_filter("gaussian_480_640.txt", image);
+            read_filter("source/gaussian_480_640.txt", image);
             cudaMemcpyAsync(d_image, image, bytes, cudaMemcpyHostToDevice,stream);
 
             // Perform multiplication in the Fourier domain
@@ -401,7 +401,7 @@ void scatter(float *image, JobScheduler* scheduler, std::string outputFile,
             downsample<<<ds_blocks, threads>>>(d_image, lp_1, x_size, ds_x_size_1);
 
             // Read the morlet 1 filter (Fourier domain) ==========================================
-            read_filter("morlet_1_480_640.txt", image);
+            read_filter("source/morlet_1_480_640.txt", image);
             cudaMemcpyAsync(d_image, image, bytes, cudaMemcpyHostToDevice,stream);
 
             // Perform multiplication in the Fourier domain
@@ -412,7 +412,7 @@ void scatter(float *image, JobScheduler* scheduler, std::string outputFile,
             cufftExecC2R(plan_c2r, dc_image, hp_1);
 
             // Read the morlet 2 filter (Fourier domain) ==========================================
-            read_filter("morlet_2_480_640.txt", image);
+            read_filter("source/morlet_2_480_640.txt", image);
             cudaMemcpyAsync(d_image, image, bytes, cudaMemcpyHostToDevice,stream);
 
             // Perform multiplication in the Fourier domain

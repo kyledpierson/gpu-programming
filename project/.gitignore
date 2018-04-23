@@ -1,4 +1,7 @@
 scatter
+scatter.log
+scatter.out
+scatter.err
 result.ppm*
 output/*out
 source/T*
