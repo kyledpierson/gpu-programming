@@ -402,10 +402,10 @@ void scatter(float *image, JobScheduler* scheduler, std::string outputFile,
 
             // Read the morlet 1 filter (Fourier domain) ==========================================
             read_filter("morlet_1_480_640.txt", image);
-            cudaMemcpy(d_image, image, bytes, cudaMemcpyHostToDevice);
+            cudaMemcpyAsync(d_image, image, bytes, cudaMemcpyHostToDevice,stream);
 
             // Perform multiplication in the Fourier domain
-            cudaMemcpy(dc_image, c_image, bytes, cudaMemcpyDeviceToDevice);
+            cudaMemcpyAsync(dc_image, c_image, bytes, cudaMemcpyDeviceToDevice,stream);
             multiply<<<blocks, threads, 0, stream>>>(dc_image, d_image, x_size);
 
             // Convert the image back to the spatial domain and downsample
@@ -413,10 +413,10 @@ void scatter(float *image, JobScheduler* scheduler, std::string outputFile,
 
             // Read the morlet 2 filter (Fourier domain) ==========================================
             read_filter("morlet_2_480_640.txt", image);
-            cudaMemcpy(d_image, image, bytes, cudaMemcpyHostToDevice);
+            cudaMemcpyAsync(d_image, image, bytes, cudaMemcpyHostToDevice,stream);
 
             // Perform multiplication in the Fourier domain
-            cudaMemcpy(dc_image, c_image, bytes, cudaMemcpyDeviceToDevice);
+            cudaMemcpyAsync(dc_image, c_image, bytes, cudaMemcpyDeviceToDevice,stream);
             multiply<<<blocks, threads, 0, stream>>>(dc_image, d_image, x_size);
 
             // Convert the image back to the spatial domain and downsample
