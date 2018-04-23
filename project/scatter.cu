@@ -15,7 +15,7 @@
 
 #define REG_CALLBACK cudaStreamAddCallback(stream,&Job::cudaCb,(void*)job,0);
 
-void reg_memclean(cudaStream_t stream,Job* job,int stageID,bool setDone = false)
+void reg_memclean(cudaStream_t& stream,Job* job,int stageID,bool setDone = false)
 {
     auto sdata = new Job::MemoryCbData();
     sdata->job = job;
@@ -448,7 +448,7 @@ void scatter(float *image, JobScheduler* scheduler, std::string outputFile,
         job->addFree(1,d_image,true);
 
         // ----------------------------------------------------------------------------------------------------
-        job->addStage([=,&lp_3] (cudaStream_t& stream) {
+        job->addStage([=,&lp_1,&lp_2,&lp_3,&lp_4,&lp_5,&lp_6,&lp_7,&lp_8,&hp_1,&hp_2,&hp_3,&hp_4] (cudaStream_t& stream) {
             LOG_DEBUG(std::string("Stage 2 for job: ") + job->id());
             lp_3 = (float*)MemoryWrapper::malloc(ds_bytes_1);
             if (separable) {
@@ -457,95 +457,95 @@ void scatter(float *image, JobScheduler* scheduler, std::string outputFile,
                 gaussian_convolution_2D<<<blocks, threads,0,stream>>>(hp_1, lp_3, x_size, ds_x_size_1);
             }
             job->addFree(2,hp_1,true);
+            // ----------------------------------------------------------------------------------------------------
+            job->addStage( [=,&lp_1,&lp_2,&lp_3,&lp_4,&lp_5,&lp_6,&lp_7,&lp_8,&hp_1,&hp_2,&hp_3,&hp_4](cudaStream_t& stream) {
+                LOG_DEBUG(std::string("Stage 3 for job: ") + job->id());
+                lp_5 = (float*)MemoryWrapper::malloc(ds_bytes_1);
+                if (separable) {
+                    gaussian_convolution_1D(job,stream,3,hp_2, lp_5, x_size, y_size, bytes, ds_x_size_1, ds_y_size_1, ds_bytes_1);
+                } else {
+                    gaussian_convolution_2D<<<blocks, threads,0,stream>>>(hp_2, lp_5, x_size, ds_x_size_1);
+                }
+                job->addFree(3,hp_2,true);
+                    // ----------------------------------------------------------------------------------------------------
+                    job->addStage( [=,&lp_1,&lp_2,&lp_3,&lp_4,&lp_5,&lp_6,&lp_7,&lp_8,&hp_1,&hp_2,&hp_3,&hp_4](cudaStream_t& stream) {
+                        LOG_DEBUG(std::string("Stage 4 for job: ") + job->id());
+                        lp_2 = (float*)MemoryWrapper::malloc(ds_bytes_2);
+                        lp_3 = (float*)MemoryWrapper::malloc(ds_bytes_1);
+                        lp_4 = (float*)MemoryWrapper::malloc(ds_bytes_1);
+                        if (separable) {
+                            gaussian_convolution_1D(job,stream,4,lp_1, lp_2, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
+                        } else {
+                            gaussian_convolution_2D<<<ds_blocks, threads,0,stream>>>(lp_1, lp_2, ds_x_size_1, ds_x_size_2);
+                        }
+                        morlet_1_convolution_2D<<<ds_blocks, threads,0,stream>>>(lp_1, hp_3, ds_x_size_1);
+                        morlet_2_convolution_2D<<<ds_blocks, threads,0,stream>>>(lp_1, hp_4, ds_x_size_1);
+                        job->addFree(4,lp_1,true);
+                            // ----------------------------------------------------------------------------------------------------
+                            job->addStage( [=,&lp_1,&lp_2,&lp_3,&lp_4,&lp_5,&lp_6,&lp_7,&lp_8,&hp_1,&hp_2,&hp_3,&hp_4](cudaStream_t& stream) {
+                                LOG_DEBUG(std::string("Stage 5 for job: ") + job->id());
+                                lp_4 = (float*)MemoryWrapper::malloc(ds_bytes_2);
+                                if (separable) {
+                                    gaussian_convolution_1D(job,stream,5,lp_3, lp_4, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
+                                } else {
+                                    gaussian_convolution_2D<<<ds_blocks, threads,0,stream>>>(lp_3, lp_4, ds_x_size_1, ds_x_size_2);
+                                }
+                                job->addFree(5,lp_3,true);
+                                    // ----------------------------------------------------------------------------------------------------
+                                    job->addStage( [=,&lp_1,&lp_2,&lp_3,&lp_4,&lp_5,&lp_6,&lp_7,&lp_8,&hp_1,&hp_2,&hp_3,&hp_4](cudaStream_t& stream) {
+                                        LOG_DEBUG(std::string("Stage 6 for job: ") + job->id());
+                                        lp_4 = (float*)MemoryWrapper::malloc(ds_bytes_2);
+                                        if (separable) {
+                                            gaussian_convolution_1D(job,stream,6,lp_3, lp_4, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
+                                        } else {
+                                        lp_6 = (float*)MemoryWrapper::malloc(ds_bytes_2);
+                                        if (separable) {
+                                            gaussian_convolution_1D(job,stream,6,lp_5, lp_6, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
+                                        } else {
+                                            gaussian_convolution_2D<<<ds_blocks, threads,0,stream>>>(lp_5, lp_6, ds_x_size_1, ds_x_size_2);
+                                        }
+                                        job->addFree(6,lp_5,true);
+                                            // ----------------------------------------------------------------------------------------------------
+                                            job->addStage( [=,&lp_1,&lp_2,&lp_3,&lp_4,&lp_5,&lp_6,&lp_7,&lp_8,&hp_1,&hp_2,&hp_3,&hp_4](cudaStream_t& stream) {
+                                                LOG_DEBUG(std::string("Stage 7 for job: ") + job->id());
+                                                lp_7 = (float*)MemoryWrapper::malloc(ds_bytes_2);
+                                                if (separable) {
+                                                    gaussian_convolution_1D(job,stream,7,hp_3, lp_7, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
+                                                } else {
+                                                    gaussian_convolution_2D<<<ds_blocks, threads,0,stream>>>(hp_3, lp_7, ds_x_size_1, ds_x_size_2);
+                                                }
+                                                job->addFree(7,hp_3,true);
+                                                    // ----------------------------------------------------------------------------------------------------
+                                                    job->addStage( [=,&lp_1,&lp_2,&lp_3,&lp_4,&lp_5,&lp_6,&lp_7,&lp_8,&hp_1,&hp_2,&hp_3,&hp_4](cudaStream_t& stream) {
+                                                        LOG_DEBUG(std::string("Stage 8 for job: ") + job->id());
+                                                        lp_8 = (float*)MemoryWrapper::malloc(ds_bytes_2);
+                                                        if (separable) {
+                                                            gaussian_convolution_1D(job,stream,8,hp_4, lp_8, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
+                                                        } else {
+                                                            gaussian_convolution_2D<<<ds_blocks, threads,0,stream>>>(hp_4, lp_8, ds_x_size_1, ds_x_size_2);
+                                                        }
+                                                        //job->addFree(8,hp_4,true);
+                                                        reg_memclean(stream,job,8,true);
+                                                        },ds_bytes_2,0);
+
+                                                reg_memclean(stream,job,7);
+                                                },ds_bytes_2,0);
+                                        reg_memclean(stream,job,6);
+                                        }
+                                    },ds_bytes_2,0);
+                                reg_memclean(stream,job,5);
+                                },ds_bytes_2,0);
+                        reg_memclean(stream,job,4);
+                        },ds_bytes_2 + ds_bytes_1 + ds_bytes_1,0);
+                            reg_memclean(stream,job,3);
+                        },ds_bytes_1,0);
             reg_memclean(stream,job,2);
         },ds_bytes_1,0);
 
-        // ----------------------------------------------------------------------------------------------------
-        job->addStage([=,&lp_5] (cudaStream_t& stream) {
-            LOG_DEBUG(std::string("Stage 3 for job: ") + job->id());
-            lp_5 = (float*)MemoryWrapper::malloc(ds_bytes_1);
-            if (separable) {
-                gaussian_convolution_1D(job,stream,3,hp_2, lp_5, x_size, y_size, bytes, ds_x_size_1, ds_y_size_1, ds_bytes_1);
-            } else {
-                gaussian_convolution_2D<<<blocks, threads,0,stream>>>(hp_2, lp_5, x_size, ds_x_size_1);
-            }
-            job->addFree(3,hp_2,true);
-            reg_memclean(stream,job,3);
-        },ds_bytes_1,0);
 
-        // ----------------------------------------------------------------------------------------------------
-        job->addStage([=,&lp_2,&lp_3,&lp_4] (cudaStream_t& stream) {
-            LOG_DEBUG(std::string("Stage 4 for job: ") + job->id());
-            lp_2 = (float*)MemoryWrapper::malloc(ds_bytes_2);
-            lp_3 = (float*)MemoryWrapper::malloc(ds_bytes_1);
-            lp_4 = (float*)MemoryWrapper::malloc(ds_bytes_1);
-            if (separable) {
-                gaussian_convolution_1D(job,stream,4,lp_1, lp_2, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
-            } else {
-                gaussian_convolution_2D<<<ds_blocks, threads,0,stream>>>(lp_1, lp_2, ds_x_size_1, ds_x_size_2);
-            }
-            morlet_1_convolution_2D<<<ds_blocks, threads,0,stream>>>(lp_1, hp_3, ds_x_size_1);
-            morlet_2_convolution_2D<<<ds_blocks, threads,0,stream>>>(lp_1, hp_4, ds_x_size_1);
-            job->addFree(4,lp_1,true);
-            reg_memclean(stream,job,4);
-            },ds_bytes_2 + ds_bytes_1 + ds_bytes_1,0);
 
-        // ----------------------------------------------------------------------------------------------------
-        job->addStage([=,&lp_4] (cudaStream_t& stream) {
-            LOG_DEBUG(std::string("Stage 5 for job: ") + job->id());
-            lp_4 = (float*)MemoryWrapper::malloc(ds_bytes_2);
-            if (separable) {
-                gaussian_convolution_1D(job,stream,5,lp_3, lp_4, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
-            } else {
-                gaussian_convolution_2D<<<ds_blocks, threads,0,stream>>>(lp_3, lp_4, ds_x_size_1, ds_x_size_2);
-            }
-            job->addFree(5,lp_3,true);
-            reg_memclean(stream,job,5);
-            },ds_bytes_2,0);
 
-        // ----------------------------------------------------------------------------------------------------
-        job->addStage([=,&lp_4,&lp_6] (cudaStream_t& stream) {
-            LOG_DEBUG(std::string("Stage 6 for job: ") + job->id());
-            lp_4 = (float*)MemoryWrapper::malloc(ds_bytes_2);
-            if (separable) {
-                gaussian_convolution_1D(job,stream,6,lp_3, lp_4, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
-            } else {
-            lp_6 = (float*)MemoryWrapper::malloc(ds_bytes_2);
-            if (separable) {
-                gaussian_convolution_1D(job,stream,6,lp_5, lp_6, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
-            } else {
-                gaussian_convolution_2D<<<ds_blocks, threads,0,stream>>>(lp_5, lp_6, ds_x_size_1, ds_x_size_2);
-            }
-            job->addFree(6,lp_5,true);
-            reg_memclean(stream,job,6);
-            }
-        },ds_bytes_2,0);
 
-        // ----------------------------------------------------------------------------------------------------
-        job->addStage([=,&lp_7] (cudaStream_t& stream) {
-            LOG_DEBUG(std::string("Stage 7 for job: ") + job->id());
-            lp_7 = (float*)MemoryWrapper::malloc(ds_bytes_2);
-            if (separable) {
-                gaussian_convolution_1D(job,stream,7,hp_3, lp_7, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
-            } else {
-                gaussian_convolution_2D<<<ds_blocks, threads,0,stream>>>(hp_3, lp_7, ds_x_size_1, ds_x_size_2);
-            }
-            job->addFree(7,hp_3,true);
-            reg_memclean(stream,job,7);
-            },ds_bytes_2,0);
-
-        // ----------------------------------------------------------------------------------------------------
-        job->addStage([=,&lp_8] (cudaStream_t& stream) {
-            LOG_DEBUG(std::string("Stage 8 for job: ") + job->id());
-            lp_8 = (float*)MemoryWrapper::malloc(ds_bytes_2);
-            if (separable) {
-                gaussian_convolution_1D(job,stream,8,hp_4, lp_8, ds_x_size_1, ds_y_size_1, ds_bytes_1, ds_x_size_2, ds_y_size_2, ds_bytes_2);
-            } else {
-                gaussian_convolution_2D<<<ds_blocks, threads,0,stream>>>(hp_4, lp_8, ds_x_size_1, ds_x_size_2);
-            }
-            job->addFree(8,hp_4,true);
-            reg_memclean(stream,job,8,true);
-            },ds_bytes_2,0);
 
         // ========================================================================
         job->registerCleanup(std::move([=] () {
@@ -606,6 +606,8 @@ void scatter(float *image, JobScheduler* scheduler, std::string outputFile,
             MemoryWrapper::free(lp_6);
             MemoryWrapper::free(lp_7);
             MemoryWrapper::free(lp_8);
+            MemoryWrapper::free(hp_4);
+            //job->addFree(8,hp_4,true);
             LOG_DEBUG("Cleanup complete");
         }));
         reg_memclean(stream,job,1);

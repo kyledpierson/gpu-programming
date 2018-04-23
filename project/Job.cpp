@@ -24,6 +24,7 @@ void Job::setDone()
 Job::~Job()
 {
     LOG_DEBUG("Destroying job " + _id);
+    //cudaStreamSynchronize(_stream);
     cudaStreamDestroy(_stream);
 }
 cudaStream_t& Job::getStream()
@@ -134,6 +135,7 @@ void CUDART_CB Job::memoryCb(cudaStream_t stream, cudaError_t status, void* user
     LOG_DEBUG(std::string("Cleaning up memory for stage ") + std::to_string(stage) + std::string(" job id ") + job->id());
 
     //Can't do it on a callback thread,
+    /*
     auto stageSet = job->_toFree[stage];
     job->_scheduler->queueCallback(job,[=] () {
 
@@ -150,6 +152,7 @@ void CUDART_CB Job::memoryCb(cudaStream_t stream, cudaError_t status, void* user
                 free(memPair.second);
         }
     });
+    */
     delete data;
     if(done)
         job->setDone();
@@ -174,6 +177,18 @@ void Job::_internalCb()
             this->startTimer();
             this->_cleanupFunc();
             this->stopTimer();
+            for(auto stageSet : _toFree)
+            {
+                for(auto memPair : stageSet.second)
+                {
+                    if(memPair.first)
+                    {
+                        MemoryWrapper::free(memPair.second);
+                    }
+                    else
+                        free(memPair.second);
+                }
+            }
             _scheduler->jobDone(this);  //calls checkIfCanRunJob
         });
     }
