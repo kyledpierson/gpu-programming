@@ -40,7 +40,7 @@ void ThreadPool::queueJob(vFunc job)
 vFunc ThreadPool::_getJob(bool& specialNop)
 {
     //Grab the lock
-    specialNop = true;
+    specialNop = false;
     std::unique_lock<std::mutex> lock(_jobLock);
 
     while(_run)
@@ -83,7 +83,12 @@ void ThreadPool::finishAllJobs()
 {
     _acceptNewJobs = false;
 
-/*
+    std::unique_lock<std::mutex> lock(_jobLock);
+    while(!_jobQueue.empty())
+        _notifyJob.wait(lock);
+
+
+    /*
     for(std::unique_ptr<std::thread>& worker : _workers)
     {
         if(worker->joinable())
@@ -91,7 +96,7 @@ void ThreadPool::finishAllJobs()
     }
     */
 
-    stopPool();
+    //stopPool();
 }
 
 
@@ -117,6 +122,7 @@ void ThreadPool::_loop()
             //We got the NOP job, which is fine in the case of shutdown
             // but if we got the NOP and we are not accepting new jobs
             // it means that we want to finish this thread.
+            _notifyJob.notify_all();
             return;
         }
         try

@@ -31,7 +31,8 @@ namespace Log {
 
     void log(const std::string& level, const std::string& msg)
     {
-        std::cout << timeString() << " " << level << " -- " << msg << std::endl;
+        if(level != "DEBUG")
+            std::cout << timeString() << " " << level << " -- " << msg << std::endl;
     }
 
     std::string timeString()

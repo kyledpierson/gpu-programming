@@ -57,6 +57,7 @@ int main(int argc, char **argv) {
 
     // Compute the scattering transform
     JobScheduler scheduler(0);
+    JobScheduler* sPointer = &scheduler;
 
     Log::initLogFile("scatter.log");
     LOG_FILE("Starting Scatter log");
@@ -64,15 +65,25 @@ int main(int argc, char **argv) {
     FileCrawler crawler("source",".ppm");
     crawler.crawl();
     initConsts();
+    ThreadPool tp(1);
     for(auto file : crawler.getAllPaths())
     {
     //    LOG_DEBUG(file.path());
 
         //hack for new destination
         std::string out = std::string("output/") + file.fileName() + ".out";
-        LOG_DEBUG(file.path() + " -> " + out);
+        //scheduleForTransformation(sPointer,file.path().c_str(),out);
         if(out.size() > 0 && file.path().size() > 0)
-            scheduleForTransformation(&scheduler,file.path().c_str(),out);
+        {
+            LOG_INFO(file.path() + " -> " + out);
+            tp.queueJob(([=] () {
+                scheduleForTransformation(sPointer,file.path().c_str(),out);
+                }));
+        }
+        else
+        {
+            LOG_INFO("THATS ODD");
+        }
     }
     /*
     scheduleForTransformation(&scheduler, filename, "result.ppm");
@@ -82,6 +93,9 @@ int main(int argc, char **argv) {
     scheduleForTransformation(&scheduler, filename, "result.ppm5");
     */
 
+    LOG_INFO("Waiting to finish jobs...");
+    tp.finishAllJobs();
+    LOG_INFO("Done scheduling file loads...");
     scheduler.waitUntilDone();
     LOG_FILE("Finish Scatter log");
     Log::closeLog();

@@ -72,7 +72,10 @@ void JobScheduler::waitUntilDone()
     std::mutex m;
     std::unique_lock<std::mutex> lk(m);
     while(_currentlyRunningJobs > 0 || _jobs.size() > 0)
+    {
         _waitCv.wait(lk);
+        //LOG_DEBUG("crj " + std::to_string(_currentlyRunningJobs) + " js " + std::to_string(_jobs.size()));
+    }
     LOG_INFO("Falling out of the wait, no more jobs to process");
     LOG_INFO("----------------------")
     LOG_INFO("-- FINISH --");
