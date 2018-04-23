@@ -8,7 +8,7 @@
 #include <condition_variable>
 #include "ThreadPool.h"
 
-class JobScheduler 
+class JobScheduler
 {
     public:
     JobScheduler(int maxJobs);
@@ -31,7 +31,7 @@ class JobScheduler
         uint64_t _currentMemoryUsage;
         int _currentlyRunningJobs;
         //Probably a heap is better
-        std::vector<Job*> _jobs;
+        std::vector<std::unique_ptr<Job> > _jobs;
         std::condition_variable _waitCv;
         ThreadPool _threadPool;
         std::mutex _jobLock;

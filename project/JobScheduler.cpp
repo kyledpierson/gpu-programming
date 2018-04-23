@@ -30,7 +30,9 @@ Job* JobScheduler::addJob()
 
 void JobScheduler::queueUpJob(Job* job)
 {
-    _jobs.push_back(job);
+    std::unique_lock<std::mutex> lock(_jobLock);
+    _jobs.emplace_back(std::unique_ptr<Job>(job));
+    lock.unlock();
     checkIfCanRunJob();
 }
 
@@ -102,6 +104,7 @@ void JobScheduler::jobDone(Job* job)
     _totalUsedMs += totalTime;
     _totalBytesDone += job->bytesProcessed();
     _totalFilesProcessed++;
+    std::unique_lock<std::mutex> lock(_jobLock);
     for(auto it = _jobs.begin(); it != _jobs.end(); it++)
     {
         if((*it)->id() == job->id())
@@ -112,7 +115,7 @@ void JobScheduler::jobDone(Job* job)
         }
 
     }
-    delete job;
+    lock.unlock();
 
     checkIfCanRunJob();
     _waitCv.notify_all();

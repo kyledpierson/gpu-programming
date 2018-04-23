@@ -22,6 +22,7 @@ void Job::setDone()
 
 Job::~Job()
 {
+    LOG_DEBUG("Destroying job " + _id);
     cudaStreamDestroy(_stream);
 }
 cudaStream_t& Job::getStream()
@@ -119,8 +120,8 @@ void Job::_internalCb()
 {
     stopTimer();
     //IMPORTANT: Stream callbacks can't call CUDA calls!
-    //Need to be tricksy about this, let's go ahead and 
-    //Schedule on a thread pool for this job to be run 
+    //Need to be tricksy about this, let's go ahead and
+    //Schedule on a thread pool for this job to be run
     //http://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#stream-callbacks
     //It must do some checking to which thread is calling it.
 
@@ -128,14 +129,14 @@ void Job::_internalCb()
     //possibly do that in the future
     if(_done)
     {
-        _scheduler->queueCallback(this,[=] () { 
+        _scheduler->queueCallback(this,[=] () {
             this->startTimer();
-            this->_cleanupFunc(); 
+            this->_cleanupFunc();
             this->stopTimer();
             _scheduler->jobDone(this);  //calls checkIfCanRunJob
         });
-    } 
-    else 
+    }
+    else
     {
         //Just let it run it's own scheduler.
         _scheduler->checkIfCanRunJob();
@@ -163,7 +164,7 @@ std::string Job::GenerateGuid()
 {
     char strUuid[512];
 
-    sprintf(strUuid, "%x%x-%x-%x-%x-%x%x%x", 
+    sprintf(strUuid, "%x%x-%x-%x-%x-%x%x%x",
     rand(), rand(),                 // Generates a 64-bit Hex number
     rand(),                         // Generates a 32-bit Hex number
     ((rand() & 0x0fff) | 0x4000),   // Generates a 32-bit Hex number of the form 4xxx (4 indicates the UUID version)
