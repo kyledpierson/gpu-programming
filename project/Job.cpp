@@ -3,6 +3,7 @@
 #include "JobScheduler.h"
 #include "Log.h"
 #include "iohandler.h"
+#include "MemoryWrapper.h"
 
 
 Job::Job()
@@ -88,19 +89,27 @@ void Job::queue()
     _scheduler->queueUpJob(this);
 }
 
-void Job::addFree(void* toFree,bool cuda)
+void Job::addFree(int stage, void* toFree,bool cuda)
 {
-    _toFree.insert(std::make_pair(cuda,toFree));
+    _toFree[stage].insert(std::make_pair(cuda,toFree));
 }
 
-void Job::FreeMemory()
+void Job::FreeMemory(int stage)
 {
-    for(auto memPair : _toFree)
+
+    auto stageIt = _toFree.find(stage);
+    if(stageIt != _toFree.end())
     {
-        if(memPair.first)
-            cudaFree(memPair.second);
-        else
-            free(memPair.second);
+        auto& stageSet = (*stageIt).second;
+        for(auto memPair : stageSet)
+        {
+            if(memPair.first)
+            {
+                cudaFree(memPair.second);
+            }
+            else
+                free(memPair.second);
+        }
     }
 }
 
@@ -113,14 +122,46 @@ void CUDART_CB Job::cudaCb(cudaStream_t stream, cudaError_t status, void *userDa
     self->_internalCb();
 }
 
+__host__
+void CUDART_CB Job::memoryCb(cudaStream_t stream, cudaError_t status, void* userData)
+{
+    //Only call this after you have compelted a stage and want to free it's memory
+    Job::MemoryCbData* data = static_cast<Job::MemoryCbData*>(userData);
+    Job* job = data->job;
+    int stage = data->stage;
+    bool done = data->setDone;
+    LOG_DEBUG(std::string("Cleaning up memory for stage ") + std::to_string(stage) + std::string(" job id ") + job->id());
+
+    //Can't do it on a callback thread,
+    auto stageSet = job->_toFree[stage];
+    job->_scheduler->queueCallback(job,[=] () {
+
+        LOG_DEBUG(std::string("Actually Cleaning up memory for stage ") + std::to_string(stage) + std::string(" job id ") + job->id());
+            //Let's copy out the to free addresses so the job pointer
+            //can be deleted at any time
+        for(auto memPair : stageSet)
+        {
+            if(memPair.first)
+            {
+                MemoryWrapper::free(memPair.second);
+            }
+            else
+                free(memPair.second);
+        }
+    });
+    delete data;
+    if(done)
+        job->setDone();
+    job->_internalCb();
+}
 
 __host__
 void Job::_internalCb()
 {
     stopTimer();
     //IMPORTANT: Stream callbacks can't call CUDA calls!
-    //Need to be tricksy about this, let's go ahead and 
-    //Schedule on a thread pool for this job to be run 
+    //Need to be tricksy about this, let's go ahead and
+    //Schedule on a thread pool for this job to be run
     //http://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#stream-callbacks
     //It must do some checking to which thread is calling it.
 
@@ -128,14 +169,14 @@ void Job::_internalCb()
     //possibly do that in the future
     if(_done)
     {
-        _scheduler->queueCallback(this,[=] () { 
+        _scheduler->queueCallback(this,[=] () {
             this->startTimer();
-            this->_cleanupFunc(); 
+            this->_cleanupFunc();
             this->stopTimer();
             _scheduler->jobDone(this);  //calls checkIfCanRunJob
         });
-    } 
-    else 
+    }
+    else
     {
         //Just let it run it's own scheduler.
         _scheduler->checkIfCanRunJob();
@@ -163,7 +204,7 @@ std::string Job::GenerateGuid()
 {
     char strUuid[512];
 
-    sprintf(strUuid, "%x%x-%x-%x-%x-%x%x%x", 
+    sprintf(strUuid, "%x%x-%x-%x-%x-%x%x%x",
     rand(), rand(),                 // Generates a 64-bit Hex number
     rand(),                         // Generates a 32-bit Hex number
     ((rand() & 0x0fff) | 0x4000),   // Generates a 32-bit Hex number of the form 4xxx (4 indicates the UUID version)

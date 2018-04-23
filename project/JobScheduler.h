@@ -7,8 +7,9 @@
 #include <vector>
 #include <condition_variable>
 #include "ThreadPool.h"
+#include "MemoryWrapper.h"
 
-class JobScheduler 
+class JobScheduler
 {
     public:
     JobScheduler(int maxJobs);
@@ -18,6 +19,8 @@ class JobScheduler
     void queueUpJob(Job*);
     void jobDone(Job*);
     void queueCallback(Job* job, std::function<void ()> func);
+    void* cudaMalloc(uint64_t );
+    void cudaFree(void* ptr);
 
     void waitUntilDone();
     void checkIfCanRunJob();
@@ -34,6 +37,7 @@ class JobScheduler
         std::vector<Job*> _jobs;
         std::condition_variable _waitCv;
         ThreadPool _threadPool;
+        MemoryWrapper _memman;
         std::mutex _jobLock;
         uint64_t _totalUsedMs;
         uint64_t _totalBytesDone;
