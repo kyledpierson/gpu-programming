@@ -81,7 +81,7 @@ void JobScheduler::waitUntilDone()
     LOG_DEBUG("----------------------")
     LOG_DEBUG("Completed " + std::to_string(_totalFilesProcessed) + " files");
     LOG_DEBUG("Total Bytes Processed: " + std::to_string(_totalBytesDone/1024/1024) + " MB");
-    LOG_DEBUG(std::string("KB/S: ") + std::to_string((_totalBytesDone /1024) / (_totalUsedMs / 1000)))
+    LOG_DEBUG(std::string("KB/S: ") + std::to_string((_totalBytesDone /1024) / (float)(_totalUsedMs / 1000)))
 
 }
 void JobScheduler::ping()
