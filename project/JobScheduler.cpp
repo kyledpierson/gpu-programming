@@ -31,7 +31,9 @@ Job* JobScheduler::addJob()
 
 void JobScheduler::queueUpJob(Job* job)
 {
-    _jobs.push_back(job);
+    std::unique_lock<std::mutex> lock(_jobLock);
+    _jobs.emplace_back(std::unique_ptr<Job>(job));
+    lock.unlock();
     checkIfCanRunJob();
 }
 
@@ -82,7 +84,8 @@ void JobScheduler::waitUntilDone()
     LOG_DEBUG("----------------------")
     LOG_DEBUG("Completed " + std::to_string(_totalFilesProcessed) + " files");
     LOG_DEBUG("Total Bytes Processed: " + std::to_string(_totalBytesDone/1024/1024) + " MB");
-    LOG_DEBUG(std::string("KB/S: ") + std::to_string((_totalBytesDone /1024) / (_totalUsedMs / 1000)))
+    LOG_DEBUG("Total time: " + std::to_string((float)((float)_totalUsedMs / 1000)));
+    LOG_DEBUG(std::string("KB/S: ") + std::to_string((_totalBytesDone /1024) / (float)(_totalUsedMs / 1000)))
 
 }
 void JobScheduler::ping()
@@ -102,6 +105,7 @@ void JobScheduler::jobDone(Job* job)
     _totalUsedMs += totalTime;
     _totalBytesDone += job->bytesProcessed();
     _totalFilesProcessed++;
+    std::unique_lock<std::mutex> lock(_jobLock);
     for(auto it = _jobs.begin(); it != _jobs.end(); it++)
     {
         if((*it)->id() == job->id())
@@ -112,7 +116,7 @@ void JobScheduler::jobDone(Job* job)
         }
 
     }
-    delete job;
+    lock.unlock();
 
     checkIfCanRunJob();
     _waitCv.notify_all();

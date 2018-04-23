@@ -34,7 +34,7 @@ class JobScheduler
         uint64_t _currentMemoryUsage;
         int _currentlyRunningJobs;
         //Probably a heap is better
-        std::vector<Job*> _jobs;
+        std::vector<std::unique_ptr<Job> > _jobs;
         std::condition_variable _waitCv;
         ThreadPool _threadPool;
         MemoryWrapper _memman;

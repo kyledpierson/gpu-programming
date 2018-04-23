@@ -23,6 +23,7 @@ void Job::setDone()
 
 Job::~Job()
 {
+    LOG_DEBUG("Destroying job " + _id);
     cudaStreamDestroy(_stream);
 }
 cudaStream_t& Job::getStream()
