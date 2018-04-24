@@ -1,17 +1,25 @@
 #include "Log.h"
 
 #include <fstream>
+#include <chrono>
 
 
 namespace Log {
     static std::string logFile;
     static std::ofstream logHandle;
+    static std::chrono::high_resolution_clock::time_point startTime;
 
     void log_file(const std::string& line)
     {
         if(logFile.size() > 0)
         {
-            logHandle.write(std::string(line + "\n").c_str(),line.size() + 1);
+
+            auto now = std::chrono::high_resolution_clock::now();
+            auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime);
+            std::string time = std::to_string(diff.count());
+
+
+            logHandle.write(std::string(time + std::string(" ") + std::string(line + "\n")).c_str(),line.size() + 1 + time.size() + 1);
         }
         else
         {
@@ -22,6 +30,7 @@ namespace Log {
     {
         logFile = lFile;
         logHandle.open(logFile);
+        startTime = std::chrono::high_resolution_clock::now();
     }
     void closeLog()
     {
