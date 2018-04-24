@@ -13,7 +13,8 @@
 void scatter(float *image, JobScheduler *scheduler, std::string outFile,
              int x_size, int y_size, int bytes,
              int ds_x_size_1, int ds_y_size_1, int ds_bytes_1,
-             int ds_x_size_2, int ds_y_size_2, int ds_bytes_2, bool fourier, bool separable);
+             int ds_x_size_2, int ds_y_size_2, int ds_bytes_2,
+             bool fourier, bool separable, float *gaussian, float *morlet_1, float *morlet_2);
 void initConsts();
 
 #endif

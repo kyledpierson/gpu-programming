@@ -101,6 +101,9 @@ void JobScheduler::jobDone(Job* job)
     LOG_DEBUG(std::string("Bytes processed: " + std::to_string(job->bytesProcessed())));
     LOG_FILE(std::string("Job took ") + std::to_string(totalTime) + std::string(" MS processed ") + std::to_string(job->bytesProcessed()) + std::string(" bytes"));
     _totalUsedMs += totalTime;
+    
+    LOG_INFO("Total time: " + std::to_string((float)((float)_totalUsedMs / 1000)));
+
     _totalBytesDone += job->bytesProcessed();
     _totalFilesProcessed++;
     std::unique_lock<std::mutex> lock(_jobLock);

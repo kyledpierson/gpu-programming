@@ -343,7 +343,8 @@ void initConsts() {
 void scatter(float *image, JobScheduler* scheduler, std::string outputFile,
              int x_size, int y_size, int bytes,
              int ds_x_size_1, int ds_y_size_1, int ds_bytes_1,
-             int ds_x_size_2, int ds_y_size_2, int ds_bytes_2, bool fourier, bool separable) {
+             int ds_x_size_2, int ds_y_size_2, int ds_bytes_2,
+             bool fourier, bool separable, float *gaussian, float *morlet_1, float *morlet_2) {
 
     int x_active = BLOCKDIM_X-(2*HALO_SIZE);
     int y_active = BLOCKDIM_Y-(2*HALO_SIZE);
@@ -366,6 +367,7 @@ void scatter(float *image, JobScheduler* scheduler, std::string outputFile,
         // ----------------------------------------------------------------------------------------------------
         cudaMalloc((float**) &d_image, bytes);
         cudaMemcpyAsync(d_image, image, bytes, cudaMemcpyHostToDevice,stream);
+        free(image);
 
         cudaMalloc((float**) &lp_1, ds_bytes_1);
         cudaMalloc((float**) &hp_1, bytes);
@@ -389,8 +391,8 @@ void scatter(float *image, JobScheduler* scheduler, std::string outputFile,
             cufftExecR2C(plan_r2c, d_image, c_image);
 
             // Read the gaussian filter (Fourier domain) ==========================================
-            read_filter("source/gaussian_480_640.txt", image);
-            cudaMemcpyAsync(d_image, image, bytes, cudaMemcpyHostToDevice,stream);
+            cudaMemcpyAsync(d_image, gaussian, bytes, cudaMemcpyHostToDevice,stream);
+            free(gaussian);
 
             // Perform multiplication in the Fourier domain
             cudaMemcpyAsync(dc_image, c_image, bytes, cudaMemcpyDeviceToDevice,stream);
@@ -401,8 +403,8 @@ void scatter(float *image, JobScheduler* scheduler, std::string outputFile,
             downsample<<<ds_blocks, threads>>>(d_image, lp_1, x_size, ds_x_size_1);
 
             // Read the morlet 1 filter (Fourier domain) ==========================================
-            read_filter("source/morlet_1_480_640.txt", image);
-            cudaMemcpyAsync(d_image, image, bytes, cudaMemcpyHostToDevice,stream);
+            cudaMemcpyAsync(d_image, morlet_1, bytes, cudaMemcpyHostToDevice,stream);
+            free(morlet_1);
 
             // Perform multiplication in the Fourier domain
             cudaMemcpyAsync(dc_image, c_image, bytes, cudaMemcpyDeviceToDevice,stream);
@@ -412,8 +414,8 @@ void scatter(float *image, JobScheduler* scheduler, std::string outputFile,
             cufftExecC2R(plan_c2r, dc_image, hp_1);
 
             // Read the morlet 2 filter (Fourier domain) ==========================================
-            read_filter("source/morlet_2_480_640.txt", image);
-            cudaMemcpyAsync(d_image, image, bytes, cudaMemcpyHostToDevice,stream);
+            cudaMemcpyAsync(d_image, morlet_2, bytes, cudaMemcpyHostToDevice,stream);
+            free(morlet_2);
 
             // Perform multiplication in the Fourier domain
             cudaMemcpyAsync(dc_image, c_image, bytes, cudaMemcpyDeviceToDevice,stream);
@@ -434,7 +436,6 @@ void scatter(float *image, JobScheduler* scheduler, std::string outputFile,
             morlet_1_convolution_2D<<<blocks, threads,0,stream>>>(d_image, hp_1, x_size);
             morlet_2_convolution_2D<<<blocks, threads,0,stream>>>(d_image, hp_2, x_size);
         }
-        free(image);
         cudaFree(d_image);
 
         // ----------------------------------------------------------------------------------------------------
