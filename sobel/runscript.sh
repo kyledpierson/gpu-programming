@@ -17,4 +17,5 @@ ulimit -c unlimited -s
 
 ./sobel
 # nvprof --analysis-metrics -o analysis.nvvp ./sobel
+# nvprof --print-gpu-trace --metrics inst_integer,flop_count_dp,dram_read_throughput,dram_write_throughput -o analysis.nvvp ./sobel
 

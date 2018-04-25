@@ -6,7 +6,7 @@
 #include "cuda.h"
 
 #define DEFAULT_THRESHOLD  4000
-#define DEFAULT_FILENAME "mountains.ppm"
+#define DEFAULT_FILENAME "images/mountains.ppm"
 
 unsigned int *read_ppm( char *filename, int & xsize, int & ysize, int & maxval ) {
     if ( !filename || filename[0] == '\0') {
